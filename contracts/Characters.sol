@@ -12,16 +12,16 @@ contract Characters is ERC721, RandomRequestorInterface {
     struct Character {
         string name;
         uint256 tokenHash;
-        int256 health;
-        int256 maxHealth;
-        int8[5] stats;
+        uint256 health;
+        uint256 maxHealth;
+        uint256[5] stats;
         uint256[] qwerks;
     }
 
     struct Qwerk {
         string name;
         int256 maxHealth;
-        int8[5] stats;
+        int256[5] stats;
     }
 
     struct Attribute {
@@ -48,6 +48,9 @@ contract Characters is ERC721, RandomRequestorInterface {
     mapping(uint256 => Qwerk) internal _qwerks;
     uint256 internal _totalQwerks;
 
+    uint256 internal constant HEALTH_MAX = 1000;
+    uint256 internal constant STAT_MAX = 100;
+
     constructor(address gameCards, address rngManager) ERC721("name", "symbol") {
         cards = CardsInterface(gameCards);
         randomManager = RandomManagerInterface(rngManager);
@@ -72,12 +75,12 @@ contract Characters is ERC721, RandomRequestorInterface {
     
         _totalEffectSvgs = 2;
 
-
         // Initial qwerks
-        int8[5] memory clumsyStats = [-2, 0, 0, 0, 0];
-        _qwerks[0] = Qwerk("Clumsy", 0, clumsyStats);
+        _qwerks[0] = Qwerk("Coward", 0, [int256(0), 0, 0, 0, 0]);
+        _qwerks[0] = Qwerk("Brave", 0, [int256(0), 0, 0, 0, 0]);
+        _qwerks[0] = Qwerk("Clumsy", 0, [int256(0), 0, 0, 0, 0]);
 
-        _totalQwerks = 0;
+        _totalQwerks = 3;
     }
 
     function tokenURI(uint256 id) public view override returns (string memory) {       
@@ -120,11 +123,11 @@ contract Characters is ERC721, RandomRequestorInterface {
         uint256 effectRoll = randomManager.randomResponse(_mintRequestIds[msg.sender])[1] % _totalEffectSvgs;
         uint256 tokenId = ((effectRoll * 100) + baseRoll) + 10000;
 
-        int256 maxHealth = int256(randomManager.randomResponse(_mintRequestIds[msg.sender])[2] % 26) + 50;
+        uint256 maxHealth = (randomManager.randomResponse(_mintRequestIds[msg.sender])[2] % 26) + 50;
 
-        int8[5] memory stats;
+        uint256[5] memory stats;
         for(uint256 i = 0; i < stats.length; i++) {
-            stats[i] = int8(uint8(randomManager.randomResponse(_mintRequestIds[msg.sender])[i + 3]) % 4) + 1;
+            stats[i] = (randomManager.randomResponse(_mintRequestIds[msg.sender])[i + 3] % 4) + 1;
         }
 
         uint256[] memory qwerks = new uint256[](1);
@@ -147,39 +150,58 @@ contract Characters is ERC721, RandomRequestorInterface {
         _characters[charId].stats = _addStats(_characters[charId].stats, _qwerks[qwerkId].stats);
     }
 
-    function _addStats(int8[5] memory stats, int8[5] memory amounts) internal pure returns (int8[5] memory) {
+    function _addStats(uint256[5] memory stats, int256[5] memory amounts) internal pure returns (uint256[5] memory) {
         for(uint256 i = 0; i < stats.length; i++) {
-            if(amounts[i] == 0) {
-                continue;
-            }
-            
-            if(stats[i] + amounts[i] < 0) {
-                stats[i] = 0;
-            } else {
-                stats[i] += amounts[i];            
+            if(amounts[i] != 0) {
+                if(amounts[i] < 0) {
+                    if(uint256(amounts[i] * -1) >= stats[i]) {
+                        stats[i] = 1;
+                    } else {
+                        stats[i] -= uint256(amounts[i] * -1);
+                    }
+                }
+                else {
+                    if(uint256(amounts[i]) + stats[i] >= STAT_MAX) {
+                        stats[i] = STAT_MAX;
+                    } else {
+                        stats[i] += uint256(amounts[i] * -1);
+                    }
+                }
             }
         }
 
         return stats;
     }
 
-    function _addMaxHealth(int256 maxHealth, int256 amount) internal pure returns (int256) {
-        if(maxHealth + amount <= 0) {
-            return 1;
+    function _addMaxHealth(uint256 maxHealth, int256 amount) internal pure returns (uint256) {
+        if(amount < 0) {
+            if(uint256(amount * -1) >= maxHealth) {
+                return 1;
+            }
+
+            return maxHealth - uint256(amount * -1);
         }
 
-        return maxHealth + amount;
+        if(uint256(amount * -1) + maxHealth >= HEALTH_MAX) {
+            return HEALTH_MAX;
+        }
+
+        return maxHealth + uint256(amount);
     }
 
-    function _addHealth(int256 maxHealth, int256 health, int256 amount) internal pure returns (int256) {
-        if(health + amount > maxHealth) {
+    function _addHealth(uint256 maxHealth, uint256 health, int256 amount) internal pure returns (uint256) {
+        if(amount < 0) {
+            if(uint256(amount * -1) >= health) {
+                return 0;
+            }
+
+            return health - uint256(amount * -1);
+        }
+
+        if(uint256(amount * -1) + health >= maxHealth) {
             return maxHealth;
         }
 
-        if(health + amount < 0) {
-            return 0;
-        }
-
-        return health + amount;
+        return health + uint256(amount * -1);
     }
 }
