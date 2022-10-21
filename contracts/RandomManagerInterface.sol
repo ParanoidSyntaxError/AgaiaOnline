@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-interface IRandomManager {
+interface RandomManagerInterface {
     function depositCredits(address linkSender, address creditReceiver, uint256 amount) external;
     function withdrawCredits(address linkReceiver) external;
 

@@ -6,10 +6,10 @@ import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
-import "./IRandomManager.sol";
-import "./IRandomRequestor.sol";
+import "./RandomManagerInterface.sol";
+import "./RandomRequestorInterface.sol";
 
-contract RandomManager is IRandomManager, VRFConsumerBaseV2, ERC677ReceiverInterface {
+contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677ReceiverInterface {
     // Receipt ID => Response
     mapping(uint256 => uint256[]) internal _responses;
 
@@ -38,7 +38,7 @@ contract RandomManager is IRandomManager, VRFConsumerBaseV2, ERC677ReceiverInter
     }
     
     function requestRandom(address requestor, uint256 dataType, bytes calldata data) external returns (uint256 requestId) {
-        IRandomRequestor randomRequestor = IRandomRequestor(requestor);
+        RandomRequestorInterface randomRequestor = RandomRequestorInterface(requestor);
 
         requestId = vrfCoordinator.requestRandomWords(
             0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f,
@@ -52,6 +52,8 @@ contract RandomManager is IRandomManager, VRFConsumerBaseV2, ERC677ReceiverInter
     }
 
     function onTokenTransfer(address /*sender*/, uint256 amount, bytes calldata data) external override {
+        require(msg.sender == address(linkToken));
+        
         address creditReceiver = abi.decode(data, (address));
         
         _addCredits(creditReceiver, amount);
