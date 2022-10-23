@@ -3,27 +3,13 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
+import "./CharactersInterface.sol";
 import "./CardsInterface.sol";
 import "./RandomManagerInterface.sol";
 import "./RandomRequestorInterface.sol";
 import "./StringHelper.sol";
 
-contract Characters is ERC721, RandomRequestorInterface {
-    struct Character {
-        string name;
-        uint256 tokenHash;
-        uint256 health;
-        uint256 maxHealth;
-        uint256[5] stats;
-        uint256[] qwerks;
-    }
-
-    struct Qwerk {
-        string name;
-        int256 maxHealth;
-        int256[5] stats;
-    }
-
+contract Characters is CharactersInterface, ERC721, RandomRequestorInterface {   
     struct Attribute {
         string name;
         string value;
@@ -37,19 +23,13 @@ contract Characters is ERC721, RandomRequestorInterface {
     mapping(uint256 => Attribute) internal _effectSvgs;
     uint256 internal _totalEffectSvgs;
 
-    mapping(address => uint256) internal _mintRequestIds;
+    mapping(address => uint256) internal _requestIds;
     
     CardsInterface public immutable cards;
     RandomManagerInterface public immutable randomManager;
     
-    mapping(uint256 => Character) internal _characters;
+    mapping(uint256 => uint256) internal _characters;
     uint256 internal _totalCharacters;
-
-    mapping(uint256 => Qwerk) internal _qwerks;
-    uint256 internal _totalQwerks;
-
-    uint256 internal constant HEALTH_MAX = 1000;
-    uint256 internal constant STAT_MAX = 100;
 
     constructor(address gameCards, address rngManager) ERC721("name", "symbol") {
         cards = CardsInterface(gameCards);
@@ -74,19 +54,12 @@ contract Characters is ERC721, RandomRequestorInterface {
             "<defs><linearGradient id='foil' x1='50%' y1='0%' x2='50%' y2='100%'><stop offset='0%' stop-color='#01FF89'><animate attributeName='stop-color' values='#01FF89;#3EAFC4;#7A5FFF;01FF89;' dur='4s' repeatCount='indefinite'/></stop><stop offset='100%' stop-color='#7A5FFF'><animate attributeName='stop-color' values='#7A5FFF;#01FF89;#3EAFC4;7A5FFF;' dur='4s' repeatCount='indefinite'/></stop></linearGradient></defs><rect fill='url(#foil)' x='-20' y='-8' width='48' height='60' transform='rotate(325)'/>");
     
         _totalEffectSvgs = 2;
-
-        // Initial qwerks
-        _qwerks[0] = Qwerk("Coward", 0, [int256(0), 0, 0, 0, 0]);
-        _qwerks[0] = Qwerk("Brave", 0, [int256(0), 0, 0, 0, 0]);
-        _qwerks[0] = Qwerk("Clumsy", 0, [int256(0), 0, 0, 0, 0]);
-
-        _totalQwerks = 3;
     }
 
     function tokenURI(uint256 id) public view override returns (string memory) {       
-        uint256 base = _characters[id].tokenHash % 100;
+        uint256 base = _characters[id] % 100;
         require(base < _totalBaseHashes);
-        uint256 effect = (_characters[id].tokenHash / 100) - 100;
+        uint256 effect = (_characters[id] / 100) - 100;
         require(effect < _totalEffectSvgs);
 
         string memory svgHeader = "<svg xmlns='http://www.w3.org/2000/svg' id='block-hack' preserveAspectRatio='xMinYMin meet' viewBox='0 0 32 32'><style>#block-hack{shape-rendering: crispedges;}</style>";
@@ -99,109 +72,36 @@ contract Characters is ERC721, RandomRequestorInterface {
         );
     }
 
-    function totalSupply() external view returns (uint256) {
+    function totalSupply() external view override returns (uint256) {
         return _totalCharacters;
     }
 
     function randomCount(uint256 /*dataType*/) external pure override returns (uint32) {
-        return 9;
+        return 2;
     }
 
     function onRequestRandom(address sender, uint256 requestId, uint256 /*dataType*/, bytes memory /*data*/) external override {
         require(msg.sender == address(randomManager));
-        require(_mintRequestIds[sender] == 0);
+        require(_requestIds[sender] == 0);
         require(cards.totalBalance(sender) > 0);
         
-        _mintRequestIds[sender] = requestId;
+        _requestIds[sender] = requestId;
     }
 
-    function claimMint(string calldata name) external {
-        require(_mintRequestIds[msg.sender] > 0);
-        require(randomManager.requestResponded(_mintRequestIds[msg.sender]));
+    function claimMint() external override returns (uint256) {
+        require(_requestIds[msg.sender] > 0);
+        require(randomManager.requestResponded(_requestIds[msg.sender]));
 
-        uint256 baseRoll = randomManager.randomResponse(_mintRequestIds[msg.sender])[0] % _totalBaseHashes;
-        uint256 effectRoll = randomManager.randomResponse(_mintRequestIds[msg.sender])[1] % _totalEffectSvgs;
-        uint256 tokenId = ((effectRoll * 100) + baseRoll) + 10000;
+        uint256 baseRoll = randomManager.randomResponse(_requestIds[msg.sender])[0] % _totalBaseHashes;
+        uint256 effectRoll = randomManager.randomResponse(_requestIds[msg.sender])[1] % _totalEffectSvgs;
+        uint256 tokenHash = ((effectRoll * 100) + baseRoll) + 10000;
 
-        uint256 maxHealth = (randomManager.randomResponse(_mintRequestIds[msg.sender])[2] % 26) + 50;
-
-        uint256[5] memory stats;
-        for(uint256 i = 0; i < stats.length; i++) {
-            stats[i] = (randomManager.randomResponse(_mintRequestIds[msg.sender])[i + 3] % 4) + 1;
-        }
-
-        uint256[] memory qwerks = new uint256[](1);
-        qwerks[0] = randomManager.randomResponse(_mintRequestIds[msg.sender])[8] % _totalQwerks;
-
-        _characters[_totalCharacters] = Character(name, tokenId, maxHealth, maxHealth, stats, qwerks);
+        _characters[_totalCharacters] = tokenHash;
 
         _safeMint(msg.sender, _totalCharacters);
 
         _totalCharacters++;
-    }
 
-    function _addQwerk(uint256 charId, uint256 qwerkId) internal {
-        require(qwerkId < _totalQwerks);
-        _characters[charId].qwerks.push(qwerkId);
-
-        _characters[charId].maxHealth = _addMaxHealth(_characters[charId].maxHealth, _qwerks[qwerkId].maxHealth);
-        _characters[charId].health = _addHealth(_characters[charId].maxHealth, _characters[charId].health, _qwerks[qwerkId].maxHealth);
-
-        _characters[charId].stats = _addStats(_characters[charId].stats, _qwerks[qwerkId].stats);
-    }
-
-    function _addStats(uint256[5] memory stats, int256[5] memory amounts) internal pure returns (uint256[5] memory) {
-        for(uint256 i = 0; i < stats.length; i++) {
-            if(amounts[i] != 0) {
-                if(amounts[i] < 0) {
-                    if(uint256(amounts[i] * -1) >= stats[i]) {
-                        stats[i] = 1;
-                    } else {
-                        stats[i] -= uint256(amounts[i] * -1);
-                    }
-                }
-                else {
-                    if(uint256(amounts[i]) + stats[i] >= STAT_MAX) {
-                        stats[i] = STAT_MAX;
-                    } else {
-                        stats[i] += uint256(amounts[i] * -1);
-                    }
-                }
-            }
-        }
-
-        return stats;
-    }
-
-    function _addMaxHealth(uint256 maxHealth, int256 amount) internal pure returns (uint256) {
-        if(amount < 0) {
-            if(uint256(amount * -1) >= maxHealth) {
-                return 1;
-            }
-
-            return maxHealth - uint256(amount * -1);
-        }
-
-        if(uint256(amount * -1) + maxHealth >= HEALTH_MAX) {
-            return HEALTH_MAX;
-        }
-
-        return maxHealth + uint256(amount);
-    }
-
-    function _addHealth(uint256 maxHealth, uint256 health, int256 amount) internal pure returns (uint256) {
-        if(amount < 0) {
-            if(uint256(amount * -1) >= health) {
-                return 0;
-            }
-
-            return health - uint256(amount * -1);
-        }
-
-        if(uint256(amount * -1) + health >= maxHealth) {
-            return maxHealth;
-        }
-
-        return health + uint256(amount * -1);
+        return _totalCharacters - 1;
     }
 }

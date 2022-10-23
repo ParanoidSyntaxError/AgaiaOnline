@@ -59,8 +59,8 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
         _addCredits(creditReceiver, amount);
     }
 
-    function depositCredits(address linkSender, address creditReceiver, uint256 amount) external override {
-        linkToken.transferFrom(linkSender, address(this), amount);
+    function depositCredits(address creditReceiver, uint256 amount) external override {
+        linkToken.transferFrom(msg.sender, address(this), amount);
         
         _addCredits(creditReceiver, amount);
     }

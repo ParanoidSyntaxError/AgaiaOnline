@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 interface RandomManagerInterface {
-    function depositCredits(address linkSender, address creditReceiver, uint256 amount) external;
+    function depositCredits(address creditReceiver, uint256 amount) external;
     function withdrawCredits(address linkReceiver) external;
 
     function requestRandom(address requestor, uint256 dataType, bytes calldata data) external returns (uint256 requestId);
