@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 
 import '@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol';
+import "@chainlink/contracts/src/v0.8/interfaces/ERC677ReceiverInterface.sol";
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -12,13 +13,13 @@ import "./RandomManagerInterface.sol";
 import "./RandomRequestorInterface.sol";
 import "./StringHelper.sol";
 
-contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, Ownable {
+contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, ERC677ReceiverInterface, Ownable {
     struct Attribute {
         string name;
         string value;
     }
 
-    uint256 internal _supply;
+    uint256 internal _totalSupply;
 
     // Index => SVG rectangles hash
     mapping(uint256 => Attribute) internal _bases;
@@ -36,6 +37,8 @@ contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, Ownable {
     uint256 internal constant _mintFee = 10 ** 18;
 
     mapping(address => uint256) internal _totalBalances;
+
+    mapping(address => bool) internal _receivedMintFee;
 
     constructor(address rngManager, address link) ERC1155("") {
         linkToken = LinkTokenInterface(link);
@@ -110,7 +113,7 @@ contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, Ownable {
     }
 
     function totalSupply() external view returns (uint256) {
-        return _supply;
+        return _totalSupply;
     }
 
     function mintFee() external pure returns (uint256) {
@@ -121,16 +124,29 @@ contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, Ownable {
         return 2;
     }
 
+    function onTokenTransfer(address /*sender*/, uint256 amount, bytes calldata data) external override {
+        require(msg.sender == address(linkToken));
+        require(amount >= _mintFee);
+
+        address mintReceiver = abi.decode(data, (address));
+
+        _receivedMintFee[mintReceiver] = true;
+    }
+
     function onRequestRandom(address sender, uint256 requestId, uint256 /*dataType*/, bytes memory /*data*/) external override {
         require(msg.sender == address(randomManager));
         require(_mintRequestIds[sender] == 0);
 
-        linkToken.transferFrom(sender, address(this), _mintFee);
+        if(_receivedMintFee[sender]) {
+            _receivedMintFee[sender] = false;
+        } else {
+            linkToken.transferFrom(sender, address(this), _mintFee);
+        }
 
         _mintRequestIds[sender] = requestId;
     }
 
-    function claimMint() external {
+    function claim() external {
         require(_mintRequestIds[msg.sender] > 0);
         require(randomManager.requestResponded(_mintRequestIds[msg.sender]));
 
@@ -140,7 +156,9 @@ contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, Ownable {
         uint256 id = ((effectRoll * 100) + baseRoll) + 10000;
 
         _mint(msg.sender, id, 1, "");
-        _supply++;
+        _totalSupply++;
+
+        _mintRequestIds[msg.sender] = 0;
     }
 
     function withdrawTokens(address token, address receiver) external onlyOwner {

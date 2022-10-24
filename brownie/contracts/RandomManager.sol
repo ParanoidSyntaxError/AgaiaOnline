@@ -38,25 +38,45 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
     }
     
     function requestRandom(address requestor, uint256 dataType, bytes calldata data) external returns (uint256 requestId) {
+        return _requestRandom(msg.sender, requestor, dataType, data);
+    }
+
+    function _requestRandom(address sender, address requestor, uint256 dataType, bytes memory data) internal returns (uint256 requestId) {
         RandomRequestorInterface randomRequestor = RandomRequestorInterface(requestor);
 
         requestId = vrfCoordinator.requestRandomWords(
             0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f,
-            _subscriptionIds[msg.sender],
+            _subscriptionIds[sender],
             5,
             1000000,
             randomRequestor.randomCount(dataType)
         );
 
-        randomRequestor.onRequestRandom(msg.sender, requestId, dataType, data);
+        randomRequestor.onRequestRandom(sender, requestId, dataType, data);
     }
 
-    function onTokenTransfer(address /*sender*/, uint256 amount, bytes calldata data) external override {
+    function onTokenTransfer(address sender, uint256 amount, bytes calldata data) external override {
         require(msg.sender == address(linkToken));
         
-        address creditReceiver = abi.decode(data, (address));
-        
-        _addCredits(creditReceiver, amount);
+        (
+            address creditReceiver, 
+            uint256 transferAmount, 
+            address transferReceiver, 
+            bytes memory transferData,
+            address requestor, 
+            uint256 requestDataType, 
+            bytes memory requestData
+        ) = abi.decode(data, (address, uint256, address, bytes, address, uint256, bytes));
+
+        _addCredits(creditReceiver, amount - transferAmount);
+
+        if(transferAmount > 0) {
+            linkToken.transferAndCall(transferReceiver, transferAmount, transferData);
+        }
+
+        if(requestor != address(0)) {
+            _requestRandom(sender, requestor, requestDataType, requestData);
+        }
     }
 
     function depositCredits(address creditReceiver, uint256 amount) external override {
