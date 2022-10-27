@@ -6,8 +6,8 @@ import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
-import "./RandomManagerInterface.sol";
-import "./RandomRequestorInterface.sol";
+import "./interfaces/RandomManagerInterface.sol";
+import "./interfaces/RandomRequestorInterface.sol";
 
 contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677ReceiverInterface {
     // Receipt ID => Response
@@ -47,7 +47,7 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
         requestId = vrfCoordinator.requestRandomWords(
             0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f,
             _subscriptionIds[sender],
-            5,
+            3,
             1000000,
             randomRequestor.randomCount(dataType)
         );

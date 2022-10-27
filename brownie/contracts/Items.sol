@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "./ItemsInterface.sol";
+import "./interfaces/ItemsInterface.sol";
 import "./StringHelper.sol";
 
 contract Items is ItemsInterface, ERC1155, Ownable {

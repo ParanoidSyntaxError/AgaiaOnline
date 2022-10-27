@@ -4,10 +4,10 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "./PortraitsInterface.sol";
-import "./CardsInterface.sol";
-import "./RandomManagerInterface.sol";
-import "./RandomRequestorInterface.sol";
+import "./interfaces/PortraitsInterface.sol";
+import "./interfaces/CardsInterface.sol";
+import "./interfaces/RandomManagerInterface.sol";
+import "./interfaces/RandomRequestorInterface.sol";
 import "./StringHelper.sol";
 
 contract Portraits is PortraitsInterface, RandomRequestorInterface, ERC721, Ownable {   

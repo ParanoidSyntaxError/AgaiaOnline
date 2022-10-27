@@ -8,9 +8,9 @@ import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "./CardsInterface.sol";
-import "./RandomManagerInterface.sol";
-import "./RandomRequestorInterface.sol";
+import "./interfaces/CardsInterface.sol";
+import "./interfaces/RandomManagerInterface.sol";
+import "./interfaces/RandomRequestorInterface.sol";
 import "./StringHelper.sol";
 
 contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, ERC677ReceiverInterface, Ownable {

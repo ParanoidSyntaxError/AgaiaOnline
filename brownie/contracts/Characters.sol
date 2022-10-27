@@ -4,11 +4,12 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "./RandomManagerInterface.sol";
-import "./RandomRequestorInterface.sol";
-import "./PortraitsInterface.sol";
+import "./interfaces/CharactersInterface.sol";
+import "./interfaces/RandomManagerInterface.sol";
+import "./interfaces/RandomRequestorInterface.sol";
+import "./interfaces/PortraitsInterface.sol";
 
-contract Characters is RandomRequestorInterface, Ownable {
+contract Characters is CharactersInterface, RandomRequestorInterface, Ownable {
     struct Character {
         string name;
         uint256 health;
@@ -37,7 +38,7 @@ contract Characters is RandomRequestorInterface, Ownable {
     RandomManagerInterface public immutable randomManager;
 
     PortraitsInterface public immutable portraits;
-    IERC721 internal immutable portraitsErc721;
+    IERC721 public immutable portraitsErc721;
 
     constructor(address portraitsContract, address randomManagerContract) {
         portraits = PortraitsInterface(portraitsContract);
@@ -62,24 +63,24 @@ contract Characters is RandomRequestorInterface, Ownable {
         _totalQwerks += names.length;
     }
 
-    function isCharacterCreated(uint256 characterId) external view returns (bool) {
+    function isCharacterCreated(uint256 characterId) external view override returns (bool) {
         return _isCharacterCreated(characterId);
     }
 
-    function totalCharacters() external view returns (uint256) {
+    function totalCharacters() external view override returns (uint256) {
         return _totalCharacters;
     }
 
-    function totalQwerks() external view returns (uint256) {
+    function totalQwerks() external view override returns (uint256) {
         return _totalQwerks;
     }
 
-    function getCharacter(uint256 characterId) external view returns (string memory, uint256, uint256, uint256[6] memory, uint256[] memory) {
+    function getCharacter(uint256 characterId) external view override returns (string memory, uint256, uint256, uint256[6] memory, uint256[] memory) {
         require(_isCharacterCreated(characterId));
         return (_characters[characterId].name, _characters[characterId].health, _characters[characterId].maxHealth, _characters[characterId].stats, _characters[characterId].qwerks);
     }
 
-    function getQwerk(uint256 qwerkId) external view returns (string memory, int256, int256[6] memory) {
+    function getQwerk(uint256 qwerkId) external view override returns (string memory, int256, int256[6] memory) {
         require(_isQwerkCreated(qwerkId));
         return (_qwerks[qwerkId].name, _qwerks[qwerkId].maxHealth, _qwerks[qwerkId].stats);
     }
