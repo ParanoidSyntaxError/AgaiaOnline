@@ -11,23 +11,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/CardsInterface.sol";
 import "./interfaces/RandomManagerInterface.sol";
 import "./interfaces/RandomRequestorInterface.sol";
-import "./StringHelper.sol";
+import "./SvgArt.sol";
 
-contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, ERC677ReceiverInterface, Ownable {
-    struct Attribute {
-        string name;
-        string value;
-    }
-
+contract Cards is CardsInterface, RandomRequestorInterface, SvgArt, ERC1155, ERC677ReceiverInterface {
     uint256 internal _totalSupply;
-
-    // Index => SVG rectangles hash
-    mapping(uint256 => Attribute) internal _bases;
-    uint256 internal _totalBases;
-
-    // Index => SVG effect
-    mapping(uint256 => Attribute) internal _effects;
-    uint256 internal _totalEffects;
 
     mapping(address => uint256) internal _mintRequestIds;
 
@@ -40,9 +27,9 @@ contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, ERC677Recei
 
     mapping(address => bool) internal _receivedMintFee;
 
-    constructor(address rngManager, address link) ERC1155("") {
-        linkToken = LinkTokenInterface(link);
-        randomManager = RandomManagerInterface(rngManager);
+    constructor(address randomManagerContract, address linkContract) ERC1155("") {
+        linkToken = LinkTokenInterface(linkContract);
+        randomManager = RandomManagerInterface(randomManagerContract);
 
         // Initial bases
         _bases[0] = Attribute("Magician", 
@@ -65,63 +52,29 @@ contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, ERC677Recei
         _totalEffects = 2;
     }
 
-    function addBases(string[] memory names, string[] memory values) external onlyOwner {
-        require(names.length == values.length);
-
-        for(uint256 i = 0; i < names.length; i++) {
-            _bases[_totalBases + i] = Attribute(names[i], values[i]);
-        }
-
-        _totalBases += names.length;
-    }
-
-    function addEffects(string[] memory names, string[] memory values) external onlyOwner {
-        require(names.length == values.length);
-
-        for(uint256 i = 0; i < names.length; i++) {
-            _effects[_totalEffects + i] = Attribute(names[i], values[i]);
-        }
-
-        _totalEffects += names.length;
-    }
-
-    function _afterTokenTransfer(address /*operator*/, address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory /*data*/) internal override {
-        for(uint256 i = 0; i < ids.length; i++) {
-            _totalBalances[from] -= amounts[i];
-            _totalBalances[to] += amounts[i];
-        }
-    }
-
-    function uri(uint256 id) public view virtual override returns (string memory) {
-        uint256 base = id % 100;
-        require(base < _totalBases);
-        uint256 effect = (id / 100) - 100;
-        require(effect < _totalEffects);
-
-        string memory svgHeader = "<svg xmlns='http://www.w3.org/2000/svg' id='block-hack' preserveAspectRatio='xMinYMin meet' viewBox='0 0 16 24'><style>#block-hack{shape-rendering: crispedges;}</style>";
-
-        return StringHelper.encodeMetadata(
-            string(abi.encodePacked(_bases[base].name, " (", _effects[effect].name, ")")),
-            "Description", 
-            string(abi.encodePacked(svgHeader, _effects[effect].value, StringHelper.hashToSvg(_bases[base].value), "</svg>")), 
-            "Attributes"
-        );
-    }
-
-    function totalBalance(address account) external view returns (uint256) {
+    function totalBalanceOf(address account) external view override returns (uint256) {
         return _totalBalances[account];
     }
 
-    function totalSupply() external view returns (uint256) {
+    function totalSupply() external view override returns (uint256) {
         return _totalSupply;
     }
 
-    function mintFee() external pure returns (uint256) {
+    function mintFee() external pure override returns (uint256) {
         return _mintFee;
     }
 
     function randomCount(uint256 /*dataType*/) external pure override returns (uint32) {
         return 2;
+    }
+
+    function uri(uint256 id) public view virtual override returns (string memory) {
+        return StringHelper.encodeMetadata(
+            _name(id),
+            "Description", 
+            _svg(id, "<svg xmlns='http://www.w3.org/2000/svg' id='block-hack' preserveAspectRatio='xMinYMin meet' viewBox='0 0 16 24'><style>#block-hack{shape-rendering: crispedges;}</style>"), 
+            "Attributes"
+        );
     }
 
     function onTokenTransfer(address /*sender*/, uint256 amount, bytes calldata data) external override {
@@ -146,7 +99,7 @@ contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, ERC677Recei
         _mintRequestIds[sender] = requestId;
     }
 
-    function claim() external {
+    function claim() external override returns (uint256) {
         require(_mintRequestIds[msg.sender] > 0);
         require(randomManager.requestResponded(_mintRequestIds[msg.sender]));
 
@@ -159,11 +112,22 @@ contract Cards is CardsInterface, RandomRequestorInterface, ERC1155, ERC677Recei
         _totalSupply++;
 
         _mintRequestIds[msg.sender] = 0;
+
+        return _totalSupply - 1;
     }
 
-    function withdrawTokens(address token, address receiver) external onlyOwner {
+    function withdrawTokens(address token, address receiver) external override onlyOwner returns (uint256) {
         IERC20 erc20 = IERC20(token);
-        require(erc20.balanceOf(address(this)) > 0);
-        erc20.transfer(receiver, erc20.balanceOf(address(this)));
+        uint256 balance = erc20.balanceOf(address(this));
+        require(balance > 0);
+        erc20.transfer(receiver, balance);
+        return balance;
+    }
+
+    function _afterTokenTransfer(address /*operator*/, address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory /*data*/) internal override {
+        for(uint256 i = 0; i < ids.length; i++) {
+            _totalBalances[from] -= amounts[i];
+            _totalBalances[to] += amounts[i];
+        }
     }
 }

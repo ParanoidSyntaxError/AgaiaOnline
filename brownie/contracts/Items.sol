@@ -6,26 +6,13 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./interfaces/ItemsInterface.sol";
-import "./StringHelper.sol";
+import "./SvgArt.sol";
 
-contract Items is ItemsInterface, ERC1155, Ownable {
-    struct Attribute {
-        string name;
-        string value;
-    }
-
+contract Items is ItemsInterface, SvgArt, ERC1155 {
     struct Item {
         string name;
         uint256 svgHash;
     }
-
-    // Index => SVG rectangles hash
-    mapping(uint256 => Attribute) internal _bases;
-    uint256 internal _totalBases;
-
-    // Index => SVG effect
-    mapping(uint256 => Attribute) internal _effects;
-    uint256 internal _totalEffects;
 
     // ID => Item
     mapping(uint256 => Item) _items;
@@ -34,6 +21,10 @@ contract Items is ItemsInterface, ERC1155, Ownable {
     // ID => Supply
     mapping(uint256 => uint256) internal _totalSupplys;
     uint256 internal _totalSupply;
+
+    mapping(uint256 => string) internal _uniqueNames;
+
+    address public game;
 
     constructor() ERC1155("") {
         // Initial bases
@@ -63,47 +54,40 @@ contract Items is ItemsInterface, ERC1155, Ownable {
         _totalEffects = 1;
     }
 
-    function addBases(string[] memory names, string[] memory values) external onlyOwner {
-        require(names.length == values.length);
-
-        for(uint256 i = 0; i < names.length; i++) {
-            _bases[_totalBases + i] = Attribute(names[i], values[i]);
-        }
-
-        _totalBases += names.length;
+    modifier onlyGame {
+        require(msg.sender == game);
+        _;
     }
 
-    function addEffects(string[] memory names, string[] memory values) external onlyOwner {
-        require(names.length == values.length);
-
-        for(uint256 i = 0; i < names.length; i++) {
-            _effects[_totalEffects + i] = Attribute(names[i], values[i]);
-        }
-
-        _totalEffects += names.length;
+    function setGame(address gameContract) external override onlyOwner {
+        require(game == address(0));
+        game = gameContract;
     }
 
-    function uri(uint256 id) public view virtual override returns (string memory) {
-        uint256 base = _items[id].svgHash % 100;
-        require(base < _totalBases);
-        uint256 effect = (_items[id].svgHash / 100) - 100;
-        require(effect < _totalEffects);
+    function adminTransfer(address from, address to, uint256 id, uint256 amount) external override onlyGame {
+        _safeTransferFrom(from, to, id, amount, "");
+    }
 
-        string memory svgHeader = "<svg xmlns='http://www.w3.org/2000/svg' id='block-hack' preserveAspectRatio='xMinYMin meet' viewBox='0 0 24 24'><style>#block-hack{shape-rendering: crispedges;}</style>";
+    function uri(uint256 id) public view virtual override returns (string memory) {       
+        string memory name = _name(id);
+        
+        if(StringHelper.stringLength(_uniqueNames[id]) > 0) {
+            name = _uniqueNames[id];
+        }
 
         return StringHelper.encodeMetadata(
-            _items[id].name,
+            _name(id),
             "Description", 
-            string(abi.encodePacked(svgHeader, _effects[effect].value, StringHelper.hashToSvg(_bases[base].value), "</svg>")), 
+            _svg(id, "<svg xmlns='http://www.w3.org/2000/svg' id='block-hack' preserveAspectRatio='xMinYMin meet' viewBox='0 0 24 24'><style>#block-hack{shape-rendering: crispedges;}</style>"), 
             "Attributes"
         );
     }
 
-    function totalSupply() external view returns (uint256) {
+    function totalSupply() external view override returns (uint256) {
         return _totalSupply;
     }
 
-    function itemSupply(uint256 id) external view returns (uint256) {
+    function itemSupply(uint256 id) external view override returns (uint256) {
         return _totalSupplys[id];
     }
 }
