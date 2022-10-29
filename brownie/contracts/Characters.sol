@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-
-import "./interfaces/CharactersInterface.sol";
+import "./token/CharactersERC721.sol";
 import "./interfaces/RandomManagerInterface.sol";
 import "./interfaces/RandomRequestorInterface.sol";
 import "./interfaces/CardsInterface.sol";
 import "./SvgArt.sol";
 
-contract Characters is CharactersInterface, SvgArt, RandomRequestorInterface, ERC721 {
+contract Characters is CharactersERC721, SvgArt, RandomRequestorInterface {
     struct Character {
         string name;
         uint256 tokenHash;
@@ -43,7 +40,7 @@ contract Characters is CharactersInterface, SvgArt, RandomRequestorInterface, ER
     
     address public game;
 
-    constructor(address cardsContract, address randomManagerContract) ERC721("name", "symbol") {
+    constructor(address cardsContract, address randomManagerContract) CharactersERC721("name", "symbol") {
         cards = CardsInterface(cardsContract);
         randomManager = RandomManagerInterface(randomManagerContract);
 

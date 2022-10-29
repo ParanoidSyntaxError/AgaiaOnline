@@ -4,16 +4,14 @@ pragma solidity ^0.8.17;
 import '@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol';
 import "@chainlink/contracts/src/v0.8/interfaces/ERC677ReceiverInterface.sol";
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "./interfaces/CardsInterface.sol";
+import "./token/CardsERC1155.sol";
 import "./interfaces/RandomManagerInterface.sol";
 import "./interfaces/RandomRequestorInterface.sol";
 import "./SvgArt.sol";
 
-contract Cards is CardsInterface, RandomRequestorInterface, SvgArt, ERC1155, ERC677ReceiverInterface {
+contract Cards is CardsERC1155, RandomRequestorInterface, SvgArt, ERC677ReceiverInterface {
     uint256 internal _totalSupply;
 
     mapping(address => uint256) internal _mintRequestIds;
@@ -27,7 +25,7 @@ contract Cards is CardsInterface, RandomRequestorInterface, SvgArt, ERC1155, ERC
 
     mapping(address => bool) internal _receivedMintFee;
 
-    constructor(address randomManagerContract, address linkContract) ERC1155("") {
+    constructor(address randomManagerContract, address linkContract) CardsERC1155("") {
         linkToken = LinkTokenInterface(linkContract);
         randomManager = RandomManagerInterface(randomManagerContract);
 

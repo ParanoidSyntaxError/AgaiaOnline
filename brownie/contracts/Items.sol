@@ -1,17 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-
-import "./interfaces/ItemsInterface.sol";
+import "./token/ItemsERC1155.sol";
 import "./SvgArt.sol";
 
-contract Items is ItemsInterface, SvgArt, ERC1155 {
+contract Items is ItemsERC1155, SvgArt {
+    enum EquipType {
+        HEAD,
+        CHEST,
+        HAND,
+        RING,
+        NECKLACE,
+        TRINKET,
+        BAG
+    }
+
     struct Item {
         string name;
-        uint256 svgHash;
+        uint256 tokenHash;
+        EquipType equipType;
     }
 
     // ID => Item
@@ -22,11 +29,9 @@ contract Items is ItemsInterface, SvgArt, ERC1155 {
     mapping(uint256 => uint256) internal _totalSupplys;
     uint256 internal _totalSupply;
 
-    mapping(uint256 => string) internal _uniqueNames;
-
     address public game;
 
-    constructor() ERC1155("") {
+    constructor() ItemsERC1155("") {
         // Initial bases
         _bases[0] = Attribute("Potion", 
             "0018240609160601071702010716010115170201161601010813010315130103091206021011040111080203000024070007071117070711090801031408010315070105160701060707010608070105");
@@ -68,15 +73,24 @@ contract Items is ItemsInterface, SvgArt, ERC1155 {
         _safeTransferFrom(from, to, id, amount, "");
     }
 
-    function uri(uint256 id) public view virtual override returns (string memory) {       
-        string memory name = _name(id);
+    function adminBatchTransfer(address from, address to, uint256[] memory ids, uint256[]  memory amounts) external {
+        _safeBatchTransferFrom(from, to, ids, amounts, "");
+    }
+
+    function addItem(string[] memory names, uint256[] memory tokenHashes, uint256[] memory equipTypes) external onlyOwner {
         
-        if(StringHelper.stringLength(_uniqueNames[id]) > 0) {
-            name = _uniqueNames[id];
-        }
+    }
+
+    function getItem(uint256 id) external view returns (string memory name, uint256 equipType) {
+        require(id < _totalItems);
+        return (_items[id].name, uint256(_items[id].equipType));
+    }
+
+    function uri(uint256 id) public view virtual override returns (string memory) {       
+        require(id < _totalItems);
 
         return StringHelper.encodeMetadata(
-            _name(id),
+            _items[id].name,
             "Description", 
             _svg(id, "<svg xmlns='http://www.w3.org/2000/svg' id='block-hack' preserveAspectRatio='xMinYMin meet' viewBox='0 0 24 24'><style>#block-hack{shape-rendering: crispedges;}</style>"), 
             "Attributes"
