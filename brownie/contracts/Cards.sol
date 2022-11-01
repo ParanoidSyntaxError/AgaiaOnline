@@ -16,7 +16,7 @@ contract Cards is CardsERC1155, RandomRequestorInterface, SvgArt, ERC677Receiver
 
     mapping(address => uint256) internal _mintRequestIds;
 
-    LinkTokenInterface public immutable linkToken;
+    LinkTokenInterface public immutable link;
     RandomManagerInterface public immutable randomManager;
 
     uint256 internal constant _mintFee = 10 ** 18;
@@ -26,28 +26,8 @@ contract Cards is CardsERC1155, RandomRequestorInterface, SvgArt, ERC677Receiver
     mapping(address => bool) internal _receivedMintFee;
 
     constructor(address randomManagerContract, address linkContract) CardsERC1155("") {
-        linkToken = LinkTokenInterface(linkContract);
         randomManager = RandomManagerInterface(randomManagerContract);
-
-        // Initial bases
-        _bases[0] = Attribute("Magician", 
-            "01011402140301200120130301030117121801021118010110030304110702031112020212140102101101011008010109060101020301010304010104030601050403010904010102050104030601030405010305050201060601010210011005180502031201070411010505100103061602020817010107150101");
-        _bases[1] = Attribute("Knight", 
-            "010114031004030311070203100801010905010206060101010408010105060101060113011902010216020303150201041301020410020304060102111202021404011612140202131601011011010106160202071501010120140312180202111801010518050208170101");
-        _bases[2] = Attribute("Chaos", 
-            "0101030101020120012203010302012014010122120101220522070105010701050201030405010104080101051901030418010104150101050901060702020110020103090301010603010111050101110801011009010611150101111801011019010309200101062001010721020106100104071102020910010406050404100601020704020105060102070902010615040405160102071402011016010207190201");
-        _bases[3] = Attribute("Death", 
-            "0101140201211402010304010104020101050102110304011304020114050102011001021410010202120101011301081312010114130108031102030512010206120101111102030912020110130101071402020215020612150206041501011115010105160102061801011016010209180101071702010719020104200301092003011119010104190101");
-
-        _totalBases = 4;
-
-        // Initial effects
-        _effects[0] = Attribute("Common", 
-            "<rect fill='#ffffff' x='00' y='00' width='16' height='24'/>");
-        _effects[1] = Attribute("Foil", 
-            "<defs><linearGradient id='foil' x1='50%' y1='0%' x2='50%' y2='100%'><stop offset='0%' stop-color='#01FF89'><animate attributeName='stop-color' values='#01FF89;#3EAFC4;#7A5FFF;01FF89;' dur='4s' repeatCount='indefinite'/></stop><stop offset='100%' stop-color='#7A5FFF'><animate attributeName='stop-color' values='#7A5FFF;#01FF89;#3EAFC4;7A5FFF;' dur='4s' repeatCount='indefinite'/></stop></linearGradient></defs><rect fill='url(#foil)' x='-16' y='-4' width='32' height='36' transform='rotate(325)'/>");
-    
-        _totalEffects = 2;
+        link = LinkTokenInterface(linkContract);
     }
 
     function totalBalanceOf(address account) external view override returns (uint256) {
@@ -76,7 +56,7 @@ contract Cards is CardsERC1155, RandomRequestorInterface, SvgArt, ERC677Receiver
     }
 
     function onTokenTransfer(address /*sender*/, uint256 amount, bytes calldata data) external override {
-        require(msg.sender == address(linkToken));
+        require(msg.sender == address(link));
         require(amount >= _mintFee);
 
         address mintReceiver = abi.decode(data, (address));
@@ -91,7 +71,7 @@ contract Cards is CardsERC1155, RandomRequestorInterface, SvgArt, ERC677Receiver
         if(_receivedMintFee[sender]) {
             _receivedMintFee[sender] = false;
         } else {
-            linkToken.transferFrom(sender, address(this), _mintFee);
+            link.transferFrom(sender, address(this), _mintFee);
         }
 
         _mintRequestIds[sender] = requestId;
