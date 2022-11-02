@@ -3,13 +3,14 @@ pragma solidity ^0.8.17;
 
 import "./interfaces/ActionsInterface.sol";
 import "./StatsLibrary.sol";
+import "./RandomHelper.sol";
 
 contract Actions is ActionsInterface {
     constructor() {
 
     }
 
-    function perform(uint256 id, DataLibrary.Actor memory actor, bytes memory data) external pure returns (DataLibrary.Actor memory) {
+    function perform(uint256 id, uint256 seed, DataLibrary.Actor memory actor, bytes memory data) external pure returns (DataLibrary.Actor memory) {
         if(id == 0) {
             actor.health = StatsLibrary.addHealth(actor.health, actor.maxHealth, abi.decode(data, (int256)));
         } else if (id == 1) {

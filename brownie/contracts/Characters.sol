@@ -12,13 +12,8 @@ import "./SvgArt.sol";
 import "./StatsLibrary.sol";
 
 contract Characters is CharactersERC721, SvgArt, RandomRequestorInterface {
-    struct CharacterMetadata {
-        string name;
-        uint256 tokenHash;
-    }
-
     mapping(uint256 => DataLibrary.Actor) internal _characters;
-    mapping(uint256 => CharacterMetadata) internal _charactersMetadata;
+    mapping(uint256 => DataLibrary.TokenMetadata) internal _metadata;
     uint256 internal _totalCharacters;
 
     mapping(uint256 => DataLibrary.Qwerk) internal _qwerks;
@@ -114,12 +109,12 @@ contract Characters is CharactersERC721, SvgArt, RandomRequestorInterface {
         _totalCharacters++;
 
         // Set name
-        _charactersMetadata[characterId].name = name;
+        _metadata[characterId].name = name;
 
         // Set token hash (SVG art)
         uint256 baseRoll = reponses[0] % _totalBases;
         uint256 effectRoll = reponses[1] % _totalEffects;
-        _charactersMetadata[characterId].tokenHash = ((effectRoll * 100) + baseRoll) + 10000;
+        _metadata[characterId].tokenHash = ((effectRoll * 100) + baseRoll) + 10000;
 
         // Set health
         uint256 maxHealth = (reponses[2] % 26) + 50;
