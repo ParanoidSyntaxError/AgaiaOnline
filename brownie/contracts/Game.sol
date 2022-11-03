@@ -47,6 +47,24 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
         DataLibrary.Move[] moves;
     }
 
+    struct ItemEncounter {
+        uint256 itemId;
+        uint256 characterId;
+    }
+
+    struct TrapEncounter {
+        uint256 seed;
+        DataLibrary.Move trap;
+        DataLibrary.Actor character;
+    }
+
+    struct EnemyEncounter {
+        uint256 seed;
+        Enemy enemy;
+        DataLibrary.Actor character;
+        DataLibrary.Item equippedItem;
+    }
+
     event Raid(uint256 indexed characterId, address indexed owner, uint256[] eventLog);
 
     // Chunk ID => Dungeon ID => Character IDs
@@ -140,7 +158,7 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
 
         for(uint256 i = 0; i < responses.length; i++) {
             (uint256 encounter, uint256 id) = _rollEncounter(responses[i], _requests[characterId].dungeonId);
-            
+
             eventLog[eventLogIndex] = (encounter + 1) * (10 ** 16);
             if(encounter != uint256(EncounterType.NONE)) {
                 eventLog[eventLogIndex] += id + (10 ** 12);      
@@ -149,22 +167,33 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
 
             if(encounter == uint256(EncounterType.ITEM)) {
                 // ITEM
-                items.mint(id, address(this), 1);
-                _requests[characterId].itemIds[uint256(DataLibrary.EquipType.BAG)].push(id);
-                _requests[characterId].itemAmounts[uint256(DataLibrary.EquipType.BAG)].push(1);
+                _item(ItemEncounter(
+                    id, 
+                    characterId
+                ));
             } else if (encounter == uint256(EncounterType.TRAP)) {
                 // TRAP
-                character = _trap(RandomHelper.expand(responses[i], 3), id, character);
+                character = _trap(TrapEncounter(
+                    RandomHelper.expand(responses[i], 3), 
+                    _traps[id], 
+                    character
+                ));
             } else if (encounter == uint256(EncounterType.ENEMY)) {
                 // ENEMY
                 uint256 result; // Stupid fucking compiler
-                (character, result) = _enemy(EnemyData(RandomHelper.expand(responses[i], 3), id, characterId, _requests[characterId].itemIds[uint256(DataLibrary.EquipType.HAND)][0]));
+                (character, result) = _enemy(EnemyEncounter(
+                    RandomHelper.expand(responses[i], 3), 
+                    _enemies[id], 
+                    character, 
+                    items.getItem(_requests[characterId].itemIds[uint256(DataLibrary.EquipType.HAND)][0])
+                ));
                 eventLog[eventLogIndex] += result;
             } else if (encounter == uint256(EncounterType.INVASION)) {
                 // INVASION
-                // TODO
+                // TODO: Use other raiding players
             } else {
                 // NONE
+                // TODO: Chance to progress the story
             }
 
             eventLog[eventLogIndex] += character.health + (10 ** 4);
@@ -190,8 +219,70 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
         emit Raid(characterId, _requests[characterId].owner, eventLog);
     }
 
+    function _item(ItemEncounter memory params) internal {
+        items.mint(params.itemId, address(this), 1);
+        _requests[params.characterId].itemIds[uint256(DataLibrary.EquipType.BAG)].push(params.itemId);
+        _requests[params.characterId].itemAmounts[uint256(DataLibrary.EquipType.BAG)].push(1);
+    }
+
+    function _trap(TrapEncounter memory params) internal view returns (DataLibrary.Actor memory) {
+        for(uint256 i = 0; i < params.trap.actions.length; i++) {
+            params.character = _performAction(params.trap.actions[i], RandomHelper.expand(params.seed, i + 1), params.character);
+        }
+        return params.character;
+    }
+
+    function _enemy(EnemyEncounter memory params) internal view returns (DataLibrary.Actor memory, uint256) {        
+        uint256 randNonce = 1;
+
+        for(uint256 i = 0; i < 10; i ++) {
+            bool playerFirst;
+            if(StatsLibrary.calculateInitiative(params.character.stats) == StatsLibrary.calculateInitiative(params.enemy.actor.stats)) {
+                if(RandomHelper.expand(params.seed, randNonce) % 2 == 0) {
+                    playerFirst = true;
+                }
+                randNonce++;
+            } else if(StatsLibrary.calculateInitiative(params.character.stats) > StatsLibrary.calculateInitiative(params.enemy.actor.stats)) {
+                playerFirst = true;
+            }
+
+            for(uint256 m = 0; m < 2; m++) {
+                if(playerFirst) {
+                    (params.character, params.enemy.actor) = _performMove(
+                        RandomHelper.expand(params.seed, randNonce), 
+                        params.character, 
+                        params.enemy.actor, 
+                        params.equippedItem.move
+                    );
+                } else {
+                    (params.enemy.actor, params.character) = _performMove(
+                        RandomHelper.expand(params.seed, randNonce), 
+                        params.enemy.actor, 
+                        params.character, 
+                        params.enemy.moves[RandomHelper.expand(params.seed, randNonce + 1) % params.enemy.moves.length]
+                    );
+                    randNonce++;
+                }
+
+                if(params.character.health == 0) {
+                    // Death
+                    return (params.character, 7);
+                } else if (params.enemy.actor.health == 0) {
+                    // Killed enemy
+                    return (params.character, 1);
+                }
+
+                randNonce++;
+                playerFirst = !playerFirst;
+            }
+        }
+
+        // Flee
+        return (params.character, 3);
+    }
+
     function _rollEncounter(uint256 seed, uint256 dungeonId) internal view returns (uint256, uint256) {
-        uint256 encounter = seed % _probabilitiesMax;
+        uint256 encounter = RandomHelper.expand(seed, 1) % _probabilitiesMax;
         uint256 probabilityIncrement;
         for(uint256 j = 0; j < _dungeons[dungeonId].encounterChances.length; j++) {
             probabilityIncrement += _dungeons[dungeonId].encounterChances[j];
@@ -200,7 +291,7 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
                 break;
             }
         }
-        uint256 id = RandomHelper.expand(seed, 1) % _probabilitiesMax;
+        uint256 id = RandomHelper.expand(seed, 2) % _probabilitiesMax;
         probabilityIncrement = 0;
         for(uint256 j = 0; j < _dungeons[dungeonId].chances[encounter].length; j++) {
             probabilityIncrement += _dungeons[dungeonId].chances[encounter][j];
@@ -213,53 +304,6 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
         return (encounter, id);
     }
 
-    struct EnemyData {
-        uint256 seed;
-        uint256 enemyId;
-        uint256 characterId;
-        uint256 equippedItemId;
-    }
-
-    function _enemy(EnemyData memory data) internal view returns (DataLibrary.Actor memory, uint256) {        
-        uint256 randNonce = 1;
-
-        DataLibrary.Actor memory character = characters.getCharacter(data.characterId);
-        Enemy memory enemy = _enemies[data.enemyId];
-
-        for(uint256 i = 0; i < 10; i ++) {
-            bool playerFirst;
-            if(StatsLibrary.calculateInitiative(character.stats) == StatsLibrary.calculateInitiative(enemy.actor.stats)) {
-                if(data.seed % 2 == 0) {
-                    playerFirst = true;
-                }
-                randNonce++;
-            } else if(StatsLibrary.calculateInitiative(character.stats) > StatsLibrary.calculateInitiative(enemy.actor.stats)) {
-                playerFirst = true;
-            }
-
-            for(uint256 m = 0; m < 2; m++) {
-                if(playerFirst) {
-                    (character, enemy.actor) = _performMove(data.seed, character, enemy.actor, items.getItem(data.equippedItemId).move);
-                } else {
-                    (enemy.actor, character) = _performMove(data.seed, enemy.actor, character, enemy.moves[data.seed % enemy.moves.length]);
-                }
-
-                if(character.health == 0) {
-                    // Death
-                    return (character, 7);
-                } else if (enemy.actor.health == 0) {
-                    // Killed enemy
-                    return (character, 1);
-                }
-
-                playerFirst = !playerFirst;
-            }
-        }
-
-        // Flee
-        return (character, 3);
-    }
-
     function _performMove(uint256 seed, DataLibrary.Actor memory self, DataLibrary.Actor memory other, DataLibrary.Move memory move) internal view returns (DataLibrary.Actor memory, DataLibrary.Actor memory) {
         for(uint256 j = 0; j < move.actions.length; j++) {
             if(move.self[j]) {
@@ -268,15 +312,11 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
                 other = _performAction(move.actions[j], RandomHelper.expand(seed, j + 1), other);
             }
         }
-
         return (self, other);
     }
 
-    function _trap(uint256 seed, uint256 trapId, DataLibrary.Actor memory character) internal view returns (DataLibrary.Actor memory) {
-        for(uint256 i = 0; i < _traps[trapId].actions.length; i++) {
-            character = _performAction(_traps[trapId].actions[i], seed, character);
-        }
-        return character;
+    function _performAction(DataLibrary.Action memory action, uint256 seed, DataLibrary.Actor memory character) internal view returns (DataLibrary.Actor memory) {
+        return _actions[action.parent].perform(action.id, seed, character, action.data);
     }
 
     function _itemBatchLength(uint256[][7] memory itemIds) internal pure returns (uint256 batchLength) {
@@ -298,10 +338,6 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
                 batchIndex++;
             }
         }
-    }
-
-    function _performAction(DataLibrary.Action memory action, uint256 seed, DataLibrary.Actor memory character) internal view returns (DataLibrary.Actor memory) {
-        return _actions[action.parent].perform(action.id, seed, character, action.data);
     }
 
     function _getChunkId(uint256 blockNumber) internal pure returns (uint256) {
