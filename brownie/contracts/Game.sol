@@ -8,6 +8,7 @@ import "./interfaces/ItemsInterface.sol";
 import "./interfaces/RandomManagerInterface.sol";
 import "./interfaces/RandomRequestorInterface.sol";
 import "./interfaces/ActionsInterface.sol";
+import "./interfaces/GameInterface.sol";
 
 import "./Cards.sol";
 import "./Characters.sol";
@@ -16,7 +17,7 @@ import "./Items.sol";
 import "./DataLibrary.sol";
 import "./RandomHelper.sol";
 
-contract Game is RandomRequestorInterface, ERC1155Holder {   
+contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {   
     enum EncounterType {
         ITEM,
         TRAP,
@@ -44,7 +45,7 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
     struct Enemy {
         DataLibrary.Actor actor;
         uint256[] chances;
-        DataLibrary.Move[] moves;
+        DataLibrary.Action action;
     }
 
     struct ItemEncounter {
@@ -54,7 +55,7 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
 
     struct TrapEncounter {
         uint256 seed;
-        DataLibrary.Move trap;
+        DataLibrary.Action trap;
         DataLibrary.Actor character;
     }
 
@@ -86,16 +87,19 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
     uint256 internal _totalActions;
 
     mapping(uint256 => Dungeon) internal _dungeons;
+    uint256 internal _totalDungeons;
 
-    mapping(uint256 => DataLibrary.Move) internal _traps;
+    mapping(uint256 => DataLibrary.Action) internal _traps;
+    uint256 internal _totalTraps;
 
     mapping(uint256 => Enemy) internal _enemies;
+    uint256 internal _totalEnemies;
 
-    uint256 internal constant _probabilitiesMax = 100000;
+    uint256 internal constant _probabilitiesMax = 100;
 
-    constructor(address randomManagerContract) {
-        characters = CharactersInterface(new Characters(address(this), address(0), randomManagerContract));
-        items = ItemsInterface(new Items());
+    constructor(address cardsContract, address randomManagerContract) {
+        characters = CharactersInterface(new Characters(address(this), cardsContract, randomManagerContract, msg.sender));
+        items = ItemsInterface(new Items(address(this), msg.sender));
 
         randomManager = RandomManagerInterface(randomManagerContract);
 
@@ -106,6 +110,26 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
         _equipTypeMaxes[uint256(DataLibrary.EquipType.NECKLACE)] = 1;
         _equipTypeMaxes[uint256(DataLibrary.EquipType.TRINKET)] = 2; 
         _equipTypeMaxes[uint256(DataLibrary.EquipType.BAG)] = 10;
+    }
+
+    function addActions(address actions) external override {
+        _actions[_totalActions] = ActionsInterface(actions);
+        _totalActions++;
+    }
+
+    function addDungeon(uint256[5] memory encounterChances, uint256[][5] memory chances, uint256[][5] memory ids, uint32 rndCount) external {
+        _dungeons[_totalDungeons] = Dungeon(encounterChances, chances, ids, rndCount);
+        _totalDungeons++;
+    }
+
+    function addTrap(DataLibrary.Action memory action) external {
+        _traps[_totalTraps] = action;
+        _totalTraps++;
+    }
+
+    function addEnemy(DataLibrary.Actor memory actor, uint256[] memory chances, DataLibrary.Action memory action) external {
+        _enemies[_totalEnemies] = Enemy(actor, chances, action);
+        _totalEnemies++;
     }
 
     function randomCount(uint256 dataType) external view override returns (uint32) {
@@ -145,7 +169,7 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
         _requestLocked[characterId] = true;
     }
 
-    function claim(uint256 characterId) external {
+    function claim(uint256 characterId) external override {
         require(_requestLocked[characterId] == true);     
         require(randomManager.requestResponded(_requests[characterId].requestId));
 
@@ -161,9 +185,9 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
 
             eventLog[eventLogIndex] = (encounter + 1) * (10 ** 16);
             if(encounter != uint256(EncounterType.NONE)) {
-                eventLog[eventLogIndex] += id + (10 ** 12);      
+                eventLog[eventLogIndex] += id * (10 ** 12);      
             }
-            eventLog[eventLogIndex] += character.health + (10 ** 8);
+            eventLog[eventLogIndex] += character.health * (10 ** 8);
 
             if(encounter == uint256(EncounterType.ITEM)) {
                 // ITEM
@@ -196,7 +220,7 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
                 // TODO: Chance to progress the story
             }
 
-            eventLog[eventLogIndex] += character.health + (10 ** 4);
+            eventLog[eventLogIndex] += character.health * (10 ** 4);
 
             eventLogIndex++;
 
@@ -226,8 +250,8 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
     }
 
     function _trap(TrapEncounter memory params) internal view returns (DataLibrary.Actor memory) {
-        for(uint256 i = 0; i < params.trap.actions.length; i++) {
-            params.character = _performAction(params.trap.actions[i], RandomHelper.expand(params.seed, i + 1), params.character);
+        for(uint256 i = 0; i < params.trap.parents.length; i++) {
+            params.character = _actions[params.trap.parents[i]].perform(params.trap.ids[i], params.seed, params.character, params.trap.data[i]);
         }
         return params.character;
     }
@@ -248,18 +272,18 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
 
             for(uint256 m = 0; m < 2; m++) {
                 if(playerFirst) {
-                    (params.character, params.enemy.actor) = _performMove(
+                    (params.character, params.enemy.actor) = _performAction(
                         RandomHelper.expand(params.seed, randNonce), 
                         params.character, 
                         params.enemy.actor, 
-                        params.equippedItem.move
+                        params.equippedItem.action
                     );
                 } else {
-                    (params.enemy.actor, params.character) = _performMove(
+                    (params.enemy.actor, params.character) = _performAction(
                         RandomHelper.expand(params.seed, randNonce), 
                         params.enemy.actor, 
                         params.character, 
-                        params.enemy.moves[RandomHelper.expand(params.seed, randNonce + 1) % params.enemy.moves.length]
+                        params.enemy.action
                     );
                     randNonce++;
                 }
@@ -304,19 +328,15 @@ contract Game is RandomRequestorInterface, ERC1155Holder {
         return (encounter, id);
     }
 
-    function _performMove(uint256 seed, DataLibrary.Actor memory self, DataLibrary.Actor memory other, DataLibrary.Move memory move) internal view returns (DataLibrary.Actor memory, DataLibrary.Actor memory) {
-        for(uint256 j = 0; j < move.actions.length; j++) {
-            if(move.self[j]) {
-                self = _performAction(move.actions[j], RandomHelper.expand(seed, j + 1), self);
+    function _performAction(uint256 seed, DataLibrary.Actor memory self, DataLibrary.Actor memory other, DataLibrary.Action memory action) internal view returns (DataLibrary.Actor memory, DataLibrary.Actor memory) {
+        for(uint256 i = 0; i < action.parents.length; i++) {
+            if(action.self[i]) {
+                self = _actions[action.parents[i]].perform(action.ids[i], seed, self, action.data[i]);
             } else {
-                other = _performAction(move.actions[j], RandomHelper.expand(seed, j + 1), other);
+                other = _actions[action.parents[i]].perform(action.ids[i], seed, other, action.data[i]);
             }
         }
         return (self, other);
-    }
-
-    function _performAction(DataLibrary.Action memory action, uint256 seed, DataLibrary.Actor memory character) internal view returns (DataLibrary.Actor memory) {
-        return _actions[action.parent].perform(action.id, seed, character, action.data);
     }
 
     function _itemBatchLength(uint256[][7] memory itemIds) internal pure returns (uint256 batchLength) {

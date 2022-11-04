@@ -19,8 +19,9 @@ contract Items is ItemsERC1155, SvgArt {
 
     address public game;
 
-    constructor() ItemsERC1155("") {
-
+    constructor(address gameContract, address owner) ItemsERC1155("") {
+        game = gameContract;
+        _transferOwnership(owner);
     }
 
     modifier onlyGame {
@@ -28,7 +29,13 @@ contract Items is ItemsERC1155, SvgArt {
         _;
     }
 
-    function mint(uint256 id, address to, uint256 amount) external override onlyGame {
+    function addItem(DataLibrary.Item memory item, DataLibrary.TokenMetadata memory metadata) external override {
+        _items[_totalItems] = item;
+        _metadata[_totalItems] = metadata;
+        _totalItems++;
+    }
+
+    function mint(uint256 id, address to, uint256 amount) external override {
         require(id < _totalItems);
         _mint(to, id, amount, "");
     }

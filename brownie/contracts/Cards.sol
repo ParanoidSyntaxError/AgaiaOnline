@@ -104,7 +104,9 @@ contract Cards is CardsERC1155, RandomRequestorInterface, SvgArt, ERC677Receiver
 
     function _afterTokenTransfer(address /*operator*/, address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory /*data*/) internal override {
         for(uint256 i = 0; i < ids.length; i++) {
-            _totalBalances[from] -= amounts[i];
+            if(from != address(0)) {
+                _totalBalances[from] -= amounts[i];
+            }
             _totalBalances[to] += amounts[i];
         }
     }

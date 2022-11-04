@@ -29,8 +29,12 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
 
     function randomResponse(uint256 requestId) external view override returns (uint256[] memory) {
         require(_responses[requestId].length > 0);
-
         return _responses[requestId];   
+    }
+
+    // DEBUG
+    function debugFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external {
+        _responses[requestId] = randomWords;
     }
 
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
@@ -41,9 +45,13 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
         return _requestRandom(msg.sender, requestor, dataType, data);
     }
 
+    //DEBUG
+    uint256 requestNonce = 1;
+
     function _requestRandom(address sender, address requestor, uint256 dataType, bytes memory data) internal returns (uint256 requestId) {
         RandomRequestorInterface randomRequestor = RandomRequestorInterface(requestor);
 
+        /*
         requestId = vrfCoordinator.requestRandomWords(
             0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f,
             _subscriptionIds[sender],
@@ -51,8 +59,14 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
             1000000,
             randomRequestor.randomCount(dataType)
         );
+        */
+
+        // DEBUG
+        requestId = requestNonce;
 
         randomRequestor.onRequestRandom(sender, requestId, dataType, data);
+
+        requestNonce++;
     }
 
     function onTokenTransfer(address sender, uint256 amount, bytes calldata data) external override {
@@ -93,7 +107,7 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
             vrfCoordinator.addConsumer(_subscriptionIds[receiver], address(this));
         }
 
-        linkToken.transferAndCall(address(vrfCoordinator), amount, abi.encode(_subscriptionIds[receiver]));
+        //linkToken.transferAndCall(address(vrfCoordinator), amount, abi.encode(_subscriptionIds[receiver]));
     }
 
     function withdrawCredits(address linkReceiver) external override {

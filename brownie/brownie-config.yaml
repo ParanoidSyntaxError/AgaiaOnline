@@ -5,7 +5,7 @@ networks:
         gas_price: 40000000000
         cmd_settings:
             port: 8545
-            gas_limit: 6721975
+            gas_limit: 67219750
             accounts: 50
 compiler:
   solc:

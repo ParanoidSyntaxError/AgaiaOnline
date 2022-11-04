@@ -31,18 +31,14 @@ library DataLibrary {
     }
 
     struct Action {
-        uint256 parent;
-        uint256 id;
-        bytes data;
-    }
-
-    struct Move {
-        Action[] actions;
+        uint256[] parents;
+        uint256[] ids;
+        bytes[] data;
         bool[] self;
     }
 
     struct Item {
         uint256 equipType;
-        Move move;
+        Action action;
     }
 }

@@ -30,10 +30,11 @@ contract Characters is CharactersERC721, SvgArt, RandomRequestorInterface {
     
     address public immutable game;
 
-    constructor(address gameContract, address cardsContract, address randomManagerContract) CharactersERC721("name", "symbol") {
+    constructor(address gameContract, address cardsContract, address randomManagerContract, address owner) CharactersERC721("name", "symbol") {
         game = gameContract;
         cards = CardsInterface(cardsContract);
         randomManager = RandomManagerInterface(randomManagerContract);
+        _transferOwnership(owner);
     }
 
     modifier onlyGame {
@@ -94,9 +95,9 @@ contract Characters is CharactersERC721, SvgArt, RandomRequestorInterface {
         require(_requestIds[msg.sender] > 0);
         require(randomManager.requestResponded(_requestIds[msg.sender]));
 
-        _requestIds[msg.sender] = 0;
-
         _newCharacter(msg.sender, name, randomManager.randomResponse(_requestIds[msg.sender]));
+
+        _requestIds[msg.sender] = 0;
     }
 
     function _newCharacter(address receiver, string calldata name, uint256[] memory reponses) internal {
@@ -128,7 +129,7 @@ contract Characters is CharactersERC721, SvgArt, RandomRequestorInterface {
         _characters[characterId].stats = StatsLibrary.setStats(stats);
         
         // Add qwerk
-        addQwerk(characterId, reponses[9] % _totalQwerks);
+        //addQwerk(characterId, reponses[9] % _totalQwerks);
     }
 
     function addQwerk(uint256 characterId, uint256 qwerkId) public override onlyGame {

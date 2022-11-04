@@ -5,7 +5,7 @@ import "./interfaces/ActionsInterface.sol";
 import "./StatsLibrary.sol";
 import "./RandomHelper.sol";
 
-contract Actions is ActionsInterface {
+contract ActionsV01 is ActionsInterface {
     constructor() {
 
     }
