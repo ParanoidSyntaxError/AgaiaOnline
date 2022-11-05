@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./StringHelper.sol";
 
-contract SvgArt is Ownable {
+contract SvgArt is Ownable {   
     struct Attribute {
         string name;
         string value;
@@ -23,24 +23,20 @@ contract SvgArt is Ownable {
 
     }
 
-    function addBases(string[] memory names, string[] memory values) external onlyOwner {
-        require(names.length == values.length);
-
-        for(uint256 i = 0; i < names.length; i++) {
-            _bases[_totalBases + i] = Attribute(names[i], values[i]);
+    function addBases(Attribute[] memory attributes) external onlyOwner {
+        for(uint256 i = 0; i < attributes.length; i++) {
+            _bases[_totalBases + i] = attributes[i];
         }
 
-        _totalBases += names.length;
+        _totalBases += attributes.length;
     }
 
-    function addEffects(string[] memory names, string[] memory values) external onlyOwner {
-        require(names.length == values.length);
-
-        for(uint256 i = 0; i < names.length; i++) {
-            _effects[_totalEffects + i] = Attribute(names[i], values[i]);
+    function addEffects(Attribute[] memory attributes) external onlyOwner {
+        for(uint256 i = 0; i < attributes.length; i++) {
+            _effects[_totalEffects + i] = attributes[i];
         }
 
-        _totalEffects += names.length;
+        _totalEffects += attributes.length;
     }
 
     function _svg(uint256 id, string memory header) internal view returns (string memory) {

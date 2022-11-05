@@ -26,13 +26,6 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
         NONE
     }
 
-    struct Dungeon {
-        uint256[5] encounterChances;
-        uint256[][5] chances;
-        uint256[][5] ids;
-        uint32 randomCount;
-    }
-
     struct Request {
         uint256 requestId;
         uint256 chunkId;
@@ -40,12 +33,6 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
         uint256[][7] itemIds;
         uint256[][7] itemAmounts;
         address owner;
-    }
-
-    struct Enemy {
-        DataLibrary.Actor actor;
-        uint256[] chances;
-        DataLibrary.Action action;
     }
 
     struct ItemEncounter {
@@ -117,19 +104,25 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
         _totalActions++;
     }
 
-    function addDungeon(uint256[5] memory encounterChances, uint256[][5] memory chances, uint256[][5] memory ids, uint32 rndCount) external {
-        _dungeons[_totalDungeons] = Dungeon(encounterChances, chances, ids, rndCount);
-        _totalDungeons++;
+    function addDungeons(Dungeon[] memory dungeons) external override {
+        for(uint256 i = 0; i < dungeons.length; i++) {
+            _dungeons[_totalDungeons] = dungeons[i];
+            _totalDungeons++;
+        }
     }
 
-    function addTrap(DataLibrary.Action memory action) external {
-        _traps[_totalTraps] = action;
-        _totalTraps++;
+    function addTraps(DataLibrary.Action[] memory actions) external override {
+        for(uint256 i = 0; i < actions.length; i++) {
+            _traps[_totalTraps] = actions[i];
+            _totalTraps++;
+        }
     }
 
-    function addEnemy(DataLibrary.Actor memory actor, uint256[] memory chances, DataLibrary.Action memory action) external {
-        _enemies[_totalEnemies] = Enemy(actor, chances, action);
+    function addEnemies(Enemy[] memory enemies) external override {
+        for(uint256 i = 0; i < enemies.length; i++) {
+        _enemies[_totalEnemies] = enemies[i];
         _totalEnemies++;
+        }
     }
 
     function randomCount(uint256 dataType) external view override returns (uint32) {

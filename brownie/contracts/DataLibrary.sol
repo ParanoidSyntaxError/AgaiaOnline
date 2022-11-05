@@ -17,6 +17,11 @@ library DataLibrary {
         uint256 tokenHash;
     }
 
+    struct Item {
+        uint256 equipType;
+        DataLibrary.Action action;
+    }
+
     struct Actor {
         uint256 health;
         uint256 maxHealth;
@@ -35,10 +40,5 @@ library DataLibrary {
         uint256[] ids;
         bytes[] data;
         bool[] self;
-    }
-
-    struct Item {
-        uint256 equipType;
-        Action action;
     }
 }

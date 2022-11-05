@@ -6,8 +6,6 @@ import "./SvgArt.sol";
 import "./DataLibrary.sol";
 
 contract Items is ItemsERC1155, SvgArt {
-
-
     // ID => Item
     mapping(uint256 => DataLibrary.Item) _items;
     mapping(uint256 => DataLibrary.TokenMetadata) _metadata;
@@ -29,10 +27,12 @@ contract Items is ItemsERC1155, SvgArt {
         _;
     }
 
-    function addItem(DataLibrary.Item memory item, DataLibrary.TokenMetadata memory metadata) external override {
-        _items[_totalItems] = item;
-        _metadata[_totalItems] = metadata;
-        _totalItems++;
+    function addItems(DataLibrary.Item[] memory items, DataLibrary.TokenMetadata[] memory metadata) external override {
+        for(uint256 i = 0; i < items.length; i++) {
+            _items[_totalItems] = items[i];
+            _metadata[_totalItems] = metadata[i];
+            _totalItems++;
+        }
     }
 
     function mint(uint256 id, address to, uint256 amount) external override {
