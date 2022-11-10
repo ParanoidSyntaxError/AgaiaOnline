@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "./token/CardsERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+
+import "./interfaces/CardsInterface.sol";
+
 import "./SvgArt.sol";
 
-contract Cards is CardsERC1155, SvgArt {
+contract Cards is CardsInterface, ERC1155, SvgArt {
+
     uint256 internal _totalSupply;
 
     mapping(address => uint256) internal _totalBalances;
 
     address public immutable game;
 
-    constructor(address gameContract, address owner) CardsERC1155("") {
+    constructor(address gameContract, address owner) ERC1155("") {
         game = gameContract;
         _transferOwnership(owner);
     }
@@ -43,7 +47,7 @@ contract Cards is CardsERC1155, SvgArt {
         );
     }
 
-    function _afterTokenTransfer(address /*operator*/, address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory /*data*/) internal override {
+    function _afterTokenTransfer(address /*operator*/, address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory /*data*/) internal virtual override {
         for(uint256 i = 0; i < ids.length; i++) {
             if(from != address(0)) {
                 _totalBalances[from] -= amounts[i];

@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "./token/ItemsERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+
+import "./interfaces/ItemsInterface.sol";
+
 import "./SvgArt.sol";
 
-contract Items is ItemsERC1155, SvgArt {
+contract Items is ItemsInterface, ERC1155, SvgArt {
+
     // ID => Item
     mapping(uint256 => DataLibrary.TokenMetadata) _metadata;
     uint256 internal _totalItems;
@@ -15,7 +19,8 @@ contract Items is ItemsERC1155, SvgArt {
 
     address public immutable game;
 
-    constructor(address gameContract, address owner) ItemsERC1155("") {
+
+    constructor(address gameContract, address owner) ERC1155("") {
         game = gameContract;
         _transferOwnership(owner);
     }
@@ -25,11 +30,16 @@ contract Items is ItemsERC1155, SvgArt {
         _;
     }
 
+    function approveAllOf(address account) external override onlyGame {
+        _setApprovalForAll(account, game, true);
+    }
+
     function addItems(DataLibrary.TokenMetadata[] memory metadata) external override onlyGame {
         for(uint256 i = 0; i < metadata.length; i++) {
-            _metadata[_totalItems] = metadata[i];
-            _totalItems++;
+            _metadata[_totalItems + i] = metadata[i];
         }
+
+        _totalItems += metadata.length;
     }
 
     function mint(uint256 id, address to, uint256 amount) external override onlyGame {

@@ -1,16 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "./token/CharactersERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+
+import "./interfaces/CharactersInterface.sol";
+
 import "./SvgArt.sol";
 
-contract Characters is CharactersERC721, SvgArt {
+contract Characters is CharactersInterface, ERC721, SvgArt {
+   
+
     mapping(uint256 => DataLibrary.TokenMetadata) internal _metadata;
     uint256 internal _totalSupply;
 
     address public immutable game;
 
-    constructor(address gameContract, address owner) CharactersERC721("name", "symbol") {
+
+    constructor(address gameContract, address owner) ERC721("", "") {
         game = gameContract;
         _transferOwnership(owner);
     }
@@ -20,9 +26,13 @@ contract Characters is CharactersERC721, SvgArt {
         _;
     }
 
-    function mint(address receiver, uint256[2] memory seeds, string memory name) external override onlyGame returns (uint256) {
+    function approveAllOf(address account) external override onlyGame {
+        _setApprovalForAll(account, game, true);
+    }
+
+    function mint(address receiver, uint256[2] memory seeds, string memory characterName) external override onlyGame returns (uint256) {
         _mint(receiver, _totalSupply);
-        _metadata[_totalSupply] = DataLibrary.TokenMetadata(name, _randomId(seeds));
+        _metadata[_totalSupply] = DataLibrary.TokenMetadata(characterName, _randomId(seeds));
         _totalSupply++;
 
         return _totalSupply - 1;
@@ -33,6 +43,8 @@ contract Characters is CharactersERC721, SvgArt {
     }
 
     function tokenURI(uint256 id) public view override returns (string memory) {       
+        _requireMinted(id);
+
         return StringHelper.encodeMetadata(
             _name(id),
             "Description", 

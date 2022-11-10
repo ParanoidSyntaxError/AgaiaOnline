@@ -89,14 +89,13 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
             address creditReceiver,  
             address consumer, 
             uint256 requestDataType, 
-            bytes memory requestData,
-            bytes memory transferData
-        ) = abi.decode(data, (uint256, address, address, address, uint256, bytes, bytes));
+            bytes memory requestData
+        ) = abi.decode(data, (uint256, address, address, address, uint256, bytes));
 
         _addCredits(creditReceiver, amount - transferAmount);
 
         if(transferAmount > 0) {
-            linkToken.transferAndCall(transferReceiver, transferAmount, transferData);
+            linkToken.transfer(transferReceiver, transferAmount);
         }
 
         if(consumer != address(0)) {
@@ -114,8 +113,8 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
         require(amount > 0);
 
         if(_subscriptionIds[receiver] == 0) {
-            _subscriptionIds[receiver] = vrfCoordinator.createSubscription();
-            vrfCoordinator.addConsumer(_subscriptionIds[receiver], address(this));
+            //_subscriptionIds[receiver] = vrfCoordinator.createSubscription();
+            //vrfCoordinator.addConsumer(_subscriptionIds[receiver], address(this));
         }
 
         //linkToken.transferAndCall(address(vrfCoordinator), amount, abi.encode(_subscriptionIds[receiver]));

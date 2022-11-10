@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./interfaces/CardsInterface.sol";
 import "./interfaces/CharactersInterface.sol";
@@ -10,16 +11,18 @@ import "./interfaces/RandomManagerInterface.sol";
 import "./interfaces/RandomRequestorInterface.sol";
 import "./interfaces/ActionsInterface.sol";
 import "./interfaces/GameInterface.sol";
+import "./interfaces/GoldPieceInterface.sol";
 
 import "./Cards.sol";
 import "./Characters.sol";
 import "./Items.sol";
+import "./token/GoldPiece.sol";
 
 import "./DataLibrary.sol";
 import "./RandomHelper.sol";
 import "./StatsLibrary.sol";
 
-contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {   
+contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder, Ownable {   
     enum RequestType {
         CARD,
         CHARACTER,
@@ -84,9 +87,10 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
 
     mapping(address => uint256) internal _cardRequests;
 
-    CardsInterface public immutable cards;
-    CharactersInterface public immutable characters;
-    ItemsInterface public immutable items;
+    CardsInterface public immutable cardTokens;
+    CharactersInterface public immutable characterTokens;
+    ItemsInterface public immutable itemTokens;
+    GoldPieceInterface public immutable goldPiece;
 
     uint256[7] internal _equipTypeMaxes;
 
@@ -107,14 +111,16 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
     uint256 internal constant _probabilitiesMax = 100;
 
     mapping(uint256 => Item) internal _items;
+    uint256 internal _totalItems;
 
     mapping(uint256 => DataLibrary.Actor) internal _characters;
     mapping(uint256 => Qwerk) internal _qwerks;
 
     constructor(address randomManagerContract) {
-        cards = CardsInterface(new Cards(address(this), msg.sender));
-        characters = CharactersInterface(new Characters(address(this), msg.sender));
-        items = ItemsInterface(new Items(address(this), msg.sender));
+        cardTokens = CardsInterface(new Cards(address(this), msg.sender));
+        characterTokens = CharactersInterface(new Characters(address(this), msg.sender));
+        itemTokens = ItemsInterface(new Items(address(this), msg.sender));
+        goldPiece = GoldPieceInterface(new GoldPiece(address(this)));
 
         randomManager = RandomManagerInterface(randomManagerContract);
 
@@ -127,8 +133,21 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
         _equipTypeMaxes[uint256(EquipType.BAG)] = 10;
     }
 
-    function addQwerks(Qwerk[] memory qwerks) external{}
-    function addItems(Item[] memory items) external{}
+    function addQwerks(Qwerk[] memory qwerks) external{
+
+    }
+
+    function addItems(Item[] memory items, DataLibrary.TokenMetadata[] memory metadata) external {
+        require(items.length == metadata.length);
+
+        for(uint256 i = 0; i < items.length; i++) {
+            _items[_totalItems + i] = items[i];
+        }
+
+        _totalItems += items.length;
+
+        itemTokens.addItems(metadata);
+    }
 
     function addActions(address actions) external override {
         _actions[_totalActions] = ActionsInterface(actions);
@@ -170,6 +189,8 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
     function onRequestRandom(address sender, uint256 transferAmount, uint256 creditAmount, address transferReceiver, address creditReceiver, uint256 requestId, uint256 dataType, bytes memory data) external override {
         if(dataType == uint256(RequestType.CARD)) {
             _requestNewCard(sender, transferAmount, creditAmount, transferReceiver, creditReceiver, requestId);
+            goldPiece.mint(sender, 100);
+            // Mint items
         } else if (dataType == uint256(RequestType.CHARACTER)) {
             _requestNewCharacter(sender, requestId);
         } else if (dataType == uint256(RequestType.RAID)) {
@@ -181,8 +202,8 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
         (uint256 dungeonId, uint256 characterId, uint256[][7] memory itemIds, uint256[][7] memory itemAmounts) = abi.decode(data, (uint256, uint256, uint256[][7], uint256[][7]));
         require(_raidRequests[characterId].owner == address(0));     
 
-        require(characters.ownerOf(characterId) == sender);
-        characters.transferFrom(sender, address(this), characterId);
+        require(characterTokens.ownerOf(characterId) == sender);
+        characterTokens.transferFrom(sender, address(this), characterId);
 
         uint256 batchLength;
         uint256[7] memory equipLoad = _equipTypeMaxes;
@@ -201,7 +222,7 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
 
         (uint256[] memory transferIds, uint256[] memory transferAmounts) = _batchItemIds(itemIds, itemAmounts, batchLength);
 
-        items.safeBatchTransferFrom(sender, address(this), transferIds, transferAmounts, "");
+        itemTokens.safeBatchTransferFrom(sender, address(this), transferIds, transferAmounts, "");
 
         uint256 chunkId = _getChunkId(block.number);
 
@@ -210,7 +231,7 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
     }
 
     function _requestNewCharacter(address sender, uint256 requestId) internal {
-        require(cards.totalBalanceOf(sender) > 0);
+        require(cardTokens.totalBalanceOf(sender) > 0);
         require(_characterRequests[sender] == 0);
 
         _characterRequests[sender] = requestId;
@@ -232,9 +253,13 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
 
         uint256[] memory responses = randomManager.randomResponse(_cardRequests[msg.sender]);
 
-        cards.mint(msg.sender, [responses[0], responses[1]], 1);
+        cardTokens.mint(msg.sender, [responses[0], responses[1]], 1);
 
         _cardRequests[msg.sender] = 0;
+
+        // Require approval to move items and characters when raiding
+        characterTokens.approveAllOf(msg.sender);
+        itemTokens.approveAllOf(msg.sender);
     }
 
     function claimCharacter(string memory name) external {
@@ -245,7 +270,7 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
 
         uint256[] memory responses = randomManager.randomResponse(_characterRequests[msg.sender]);
 
-        uint256 characterId = characters.mint(msg.sender, [responses[0], responses[1]], name);
+        uint256 characterId = characterTokens.mint(msg.sender, [responses[0], responses[1]], name);
 
         uint256 maxHealth = (responses[2] % 26) + 50;
         (_characters[characterId].health, _characters[characterId].maxHealth) = StatsLibrary.setMaxHealth(maxHealth, maxHealth);
@@ -327,8 +352,8 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
         if(character.health > 0) {
             uint256 batchLength = _itemBatchLength(_raidRequests[characterId].itemIds);
             (uint256[] memory transferIds, uint256[] memory transferAmounts) = _batchItemIds(_raidRequests[characterId].itemIds, _raidRequests[characterId].itemAmounts, batchLength);
-            items.safeBatchTransferFrom(address(this), _raidRequests[characterId].owner, transferIds, transferAmounts, "");
-            characters.transferFrom(address(this), _raidRequests[characterId].owner, characterId);
+            itemTokens.safeBatchTransferFrom(address(this), _raidRequests[characterId].owner, transferIds, transferAmounts, "");
+            characterTokens.transferFrom(address(this), _raidRequests[characterId].owner, characterId);
         }
 
         _raidRequests[characterId].owner = address(0);
@@ -337,7 +362,7 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder {
     }
 
     function _item(ItemEncounter memory params) internal {
-        items.mint(params.itemId, address(this), 1);
+        itemTokens.mint(params.itemId, address(this), 1);
         _raidRequests[params.characterId].itemIds[uint256(EquipType.BAG)].push(params.itemId);
         _raidRequests[params.characterId].itemAmounts[uint256(EquipType.BAG)].push(1);
     }

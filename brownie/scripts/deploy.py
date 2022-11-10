@@ -1,5 +1,6 @@
 from brownie import Cards, Characters, Items, Game, RandomManager, LinkToken, RandomHelper, StatsLibrary, DataLibrary, ActionsV01, accounts
-from eth_abi import encode, decode
+from eth_abi import encode
+import random
 
 class deploy:
     def linkToken(deployer):
@@ -8,7 +9,16 @@ class deploy:
     def randomManager(deployer, linkToken):
         return RandomManager.deploy(linkToken, accounts[0], {"from": deployer})
 
+    def fufillRandomRequest(randomManager, id, count):
+        responses = [random.randint(0, 10**24) for _ in range(count)]
+        return randomManager.debugFulfillRandomWords(id, responses, {"from": accounts[9]})
+
     def game(deployer, randomManager):
+        # Deploy libraries
+        RandomHelper.deploy({"from": deployer})
+        DataLibrary.deploy({"from": deployer})
+        StatsLibrary.deploy({"from": deployer})
+
         game = Game.deploy(randomManager, {"from": deployer})
 
         # Setup ActionsV01
@@ -22,16 +32,16 @@ class deploy:
         game = deploy.setupEnemies(deployer, game)
 
         # Setup cards
-        cards = Cards.at(game.cards())
+        cards = Cards.at(game.cardTokens())
         cards = deploy.setupCards(deployer, cards)
 
         # Setup characters
-        characters = Characters.at(game.characters())
+        characters = Characters.at(game.characterTokens())
         characters = deploy.setupCharacters(deployer, characters)
 
         # Setup items
-        items = Items.at(game.items())
-        items = deploy.setupItems(deployer, items)
+        items = Items.at(game.itemTokens())
+        (game, items) = deploy.setupItems(deployer, game, items)
 
         # Setup dungeons
         game = deploy.setupDungeons(deployer, game)
@@ -84,7 +94,7 @@ class deploy:
         )
         return characters
 
-    def setupItems(admin, items):
+    def setupItems(admin, game, items):
         items.addBases(
             [
                 (
@@ -103,9 +113,17 @@ class deploy:
             {"from": admin}
         )
 
-        # TODO: Add items
+        game.addItems(
+            [
+                (2, ([0],[0],[encode(['int256'], [-1])],[False]))
+            ], 
+            [
+                ("Silk's Tower", 10000)
+            ], 
+            {"from": admin}
+        )
 
-        return items
+        return game, items
 
     def setupTraps(admin, game):
         game.addTraps(
@@ -145,15 +163,25 @@ class deploy:
 
 def main():
     deployer = accounts[0]
-    RandomHelper.deploy({"from": deployer})
-    DataLibrary.deploy({"from": deployer})
-    StatsLibrary.deploy({"from": deployer})
 
     # Deploy LINK token
     linkToken = deploy.linkToken(deployer)
     randomManager = deploy.randomManager(deployer, linkToken)
 
     (game, cards, characters, items) = deploy.game(deployer, randomManager)
+
+    # Mint card
+    cardMintData = "0x" + encode(['uint256', 'address', 'address', 'address', 'uint256', 'bytes'], [10**18, game.address, deployer.address, game.address, 0, b'']).hex()
+    linkToken.transferAndCall(randomManager, 2 * (10 ** 18), cardMintData, {"from": deployer})
+    deploy.fufillRandomRequest(randomManager, 1, 2)
+    game.claimCard({"from": deployer})
+
+    # Mint character
+    randomManager.requestRandom(0, 0, accounts[9], accounts[9], game, 1, "", {"from": deployer})
+    deploy.fufillRandomRequest(randomManager, 2, 10)
+    game.claimCharacter("John the Brave", {"from": deployer})
+
+    ###
 
     # Mint card to admin address
     #linkToken.approve(cards, 1000 ** 18, {"from": admin})
