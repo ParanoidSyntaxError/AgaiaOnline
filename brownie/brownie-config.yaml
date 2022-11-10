@@ -12,3 +12,4 @@ compiler:
     remappings:
       - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.7.3'
       - '@chainlink=smartcontractkit/chainlink-brownie-contracts@0.4.1'
+      - '@vittominacori=vittominacori/erc1363-payable-token@4.8.0'

@@ -35,7 +35,7 @@ library StatsLibrary {
     uint256 internal constant BASE_FORTITUDE = 1;
     uint256 internal constant BASE_MIGHT = 1;
     uint256 internal constant MAX_SKILL = 100;
-
+    
     function setStats(uint256[6] memory stats) external pure returns (uint256[6] memory) {
         for(uint256 i = 0; i < stats.length; i++) {
             if(stats[i] > MAX_STAT) {

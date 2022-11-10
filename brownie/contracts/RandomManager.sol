@@ -41,15 +41,26 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
         _responses[requestId] = randomWords;
     }
     
-    function requestRandom(address requestor, uint256 dataType, bytes calldata data) external returns (uint256 requestId) {
-        return _requestRandom(msg.sender, requestor, dataType, data);
+    function requestRandom(uint256 transferAmount, uint256 creditAmount, address transferReceiver, address creditReceiver, address consumer, uint256 dataType, bytes calldata data) external returns (uint256 requestId) {
+        if(transferAmount > 0 || creditAmount > 0) {
+            linkToken.transferFrom(msg.sender, address(this), transferAmount + creditAmount);
+
+            if(transferAmount > 0) {
+                linkToken.transfer(transferReceiver, transferAmount);
+            }
+            if(creditAmount > 0) {
+                _addCredits(creditReceiver, creditAmount);
+            }
+        }
+
+        return _requestRandom(msg.sender, transferAmount, creditAmount, transferReceiver, creditReceiver, consumer, dataType, data);
     }
 
     //DEBUG
     uint256 requestNonce = 1;
 
-    function _requestRandom(address sender, address requestor, uint256 dataType, bytes memory data) internal returns (uint256 requestId) {
-        RandomRequestorInterface randomRequestor = RandomRequestorInterface(requestor);
+    function _requestRandom(address sender, uint256 transferAmount, uint256 creditAmount, address transferReceiver, address creditReceiver, address consumer, uint256 dataType, bytes memory data) internal returns (uint256 requestId) {
+        RandomRequestorInterface randomRequestor = RandomRequestorInterface(consumer);
 
         /*
         requestId = vrfCoordinator.requestRandomWords(
@@ -64,7 +75,7 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
         // DEBUG
         requestId = requestNonce;
 
-        randomRequestor.onRequestRandom(sender, requestId, dataType, data);
+        randomRequestor.onRequestRandom(sender, transferAmount, creditAmount, transferReceiver, creditReceiver, requestId, dataType, data);
 
         requestNonce++;
     }
@@ -73,23 +84,22 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
         require(msg.sender == address(linkToken));
         
         (
-            address creditReceiver, 
-            uint256 transferAmount, 
+            uint256 transferAmount,
             address transferReceiver, 
-            bytes memory transferData,
-            address requestor, 
+            address creditReceiver,  
+            address consumer, 
             uint256 requestDataType, 
             bytes memory requestData
-        ) = abi.decode(data, (address, uint256, address, bytes, address, uint256, bytes));
+        ) = abi.decode(data, (uint256, address, address, address, uint256, bytes));
 
         _addCredits(creditReceiver, amount - transferAmount);
 
         if(transferAmount > 0) {
-            linkToken.transferAndCall(transferReceiver, transferAmount, transferData);
+            linkToken.transfer(transferReceiver, transferAmount);
         }
 
-        if(requestor != address(0)) {
-            _requestRandom(sender, requestor, requestDataType, requestData);
+        if(consumer != address(0)) {
+            _requestRandom(sender, transferAmount, amount - transferAmount, transferReceiver, creditReceiver, consumer, requestDataType, requestData);
         }
     }
 
@@ -103,8 +113,8 @@ contract RandomManager is RandomManagerInterface, VRFConsumerBaseV2, ERC677Recei
         require(amount > 0);
 
         if(_subscriptionIds[receiver] == 0) {
-            _subscriptionIds[receiver] = vrfCoordinator.createSubscription();
-            vrfCoordinator.addConsumer(_subscriptionIds[receiver], address(this));
+            //_subscriptionIds[receiver] = vrfCoordinator.createSubscription();
+            //vrfCoordinator.addConsumer(_subscriptionIds[receiver], address(this));
         }
 
         //linkToken.transferAndCall(address(vrfCoordinator), amount, abi.encode(_subscriptionIds[receiver]));

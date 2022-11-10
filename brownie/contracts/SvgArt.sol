@@ -23,6 +23,13 @@ contract SvgArt is Ownable {
 
     }
 
+    function _randomId(uint256[2] memory seeds) internal view returns (uint256) {
+        uint256 baseRoll = seeds[0] % _totalBases;
+        uint256 effectRoll = seeds[1] % _totalEffects;
+
+        return ((effectRoll * 100) + baseRoll) + 10000;
+    }
+
     function addBases(Attribute[] memory attributes) external onlyOwner {
         for(uint256 i = 0; i < attributes.length; i++) {
             _bases[_totalBases + i] = attributes[i];

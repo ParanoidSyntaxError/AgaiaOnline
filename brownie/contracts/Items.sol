@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "./token/ItemsERC1155.sol";
-import "./SvgArt.sol";
-import "./DataLibrary.sol";
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
-contract Items is ItemsERC1155, SvgArt {
+import "./interfaces/ItemsInterface.sol";
+
+import "./SvgArt.sol";
+
+contract Items is ItemsInterface, ERC1155, SvgArt {
+
     // ID => Item
-    mapping(uint256 => DataLibrary.Item) _items;
     mapping(uint256 => DataLibrary.TokenMetadata) _metadata;
     uint256 internal _totalItems;
 
@@ -15,9 +17,10 @@ contract Items is ItemsERC1155, SvgArt {
     mapping(uint256 => uint256) internal _totalSupplys;
     uint256 internal _totalSupply;
 
-    address public game;
+    address public immutable game;
 
-    constructor(address gameContract, address owner) ItemsERC1155("") {
+
+    constructor(address gameContract, address owner) ERC1155("") {
         game = gameContract;
         _transferOwnership(owner);
     }
@@ -27,22 +30,21 @@ contract Items is ItemsERC1155, SvgArt {
         _;
     }
 
-    function addItems(DataLibrary.Item[] memory items, DataLibrary.TokenMetadata[] memory metadata) external override {
-        for(uint256 i = 0; i < items.length; i++) {
-            _items[_totalItems] = items[i];
-            _metadata[_totalItems] = metadata[i];
-            _totalItems++;
-        }
+    function approveAllOf(address account) external override onlyGame {
+        _setApprovalForAll(account, game, true);
     }
 
-    function mint(uint256 id, address to, uint256 amount) external override {
+    function addItems(DataLibrary.TokenMetadata[] memory metadata) external override onlyGame {
+        for(uint256 i = 0; i < metadata.length; i++) {
+            _metadata[_totalItems + i] = metadata[i];
+        }
+
+        _totalItems += metadata.length;
+    }
+
+    function mint(uint256 id, address to, uint256 amount) external override onlyGame {
         require(id < _totalItems);
         _mint(to, id, amount, "");
-    }
-
-    function getItem(uint256 id) external view returns (DataLibrary.Item memory) {
-        require(id < _totalItems);
-        return _items[id];
     }
 
     function uri(uint256 id) public view virtual override returns (string memory) {       

@@ -1,5 +1,6 @@
 from brownie import Cards, Characters, Items, Game, RandomManager, LinkToken, RandomHelper, StatsLibrary, DataLibrary, ActionsV01, accounts
-from eth_abi import encode, decode
+from eth_abi import encode
+import random
 
 class deploy:
     def linkToken(deployer):
@@ -8,8 +9,46 @@ class deploy:
     def randomManager(deployer, linkToken):
         return RandomManager.deploy(linkToken, accounts[0], {"from": deployer})
 
-    def cards(deployer, linkToken, randomManager):
-        cards = Cards.deploy(randomManager, linkToken, {"from": deployer})
+    def fufillRandomRequest(randomManager, id, count):
+        responses = [random.randint(0, 10**24) for _ in range(count)]
+        return randomManager.debugFulfillRandomWords(id, responses, {"from": accounts[9]})
+
+    def game(deployer, randomManager):
+        # Deploy libraries
+        RandomHelper.deploy({"from": deployer})
+        DataLibrary.deploy({"from": deployer})
+        StatsLibrary.deploy({"from": deployer})
+
+        game = Game.deploy(randomManager, {"from": deployer})
+
+        # Setup ActionsV01
+        actionsV01 = ActionsV01.deploy({"from": deployer})
+        game.addActions(actionsV01, {"from": deployer})
+
+        # Setup traps
+        game = deploy.setupTraps(deployer, game)
+
+        # Setup enemies
+        game = deploy.setupEnemies(deployer, game)
+
+        # Setup cards
+        cards = Cards.at(game.cardTokens())
+        cards = deploy.setupCards(deployer, cards)
+
+        # Setup characters
+        characters = Characters.at(game.characterTokens())
+        characters = deploy.setupCharacters(deployer, characters)
+
+        # Setup items
+        items = Items.at(game.itemTokens())
+        (game, items) = deploy.setupItems(deployer, game, items)
+
+        # Setup dungeons
+        game = deploy.setupDungeons(deployer, game)
+
+        return (game, cards, characters, items)
+
+    def setupCards(admin, cards):
         cards.addBases(
             [
                 (
@@ -17,7 +56,7 @@ class deploy:
                     "01011402140301200120130301030117121801021118010110030304110702031112020212140102101101011008010109060101020301010304010104030601050403010904010102050104030601030405010305050201060601010210011005180502031201070411010505100103061602020817010107150101"
                 )
             ],
-            {"from": deployer}
+            {"from": admin}
         )
         cards.addEffects(
             [
@@ -30,87 +69,9 @@ class deploy:
                     "<defs><linearGradient id='foil' x1='50%' y1='0%' x2='50%' y2='100%'><stop offset='0%' stop-color='#01FF89'><animate attributeName='stop-color' values='#01FF89;#3EAFC4;#7A5FFF;01FF89;' dur='4s' repeatCount='indefinite'/></stop><stop offset='100%' stop-color='#7A5FFF'><animate attributeName='stop-color' values='#7A5FFF;#01FF89;#3EAFC4;7A5FFF;' dur='4s' repeatCount='indefinite'/></stop></linearGradient></defs><rect fill='url(#foil)' x='-16' y='-4' width='32' height='36' transform='rotate(325)'/>"
                 )
             ], 
-            {"from": deployer}
+            {"from": admin}
         )
         return cards
-
-    def game(deployer, randomManager, cards):
-        game = Game.deploy(cards, randomManager, {"from": deployer})
-
-        # Setup ActionsV01
-        actionsV01 = ActionsV01.deploy({"from": deployer})
-        game.addActions(actionsV01, {"from": deployer})
-
-        # Setup traps
-        game.addTraps(
-            [
-                ([0], [0], [encode(['int256'], [-1])], [False])
-            ], 
-            {"from": deployer}
-        )
-
-        # Setup enemies
-        game.addEnemies(
-            [
-                (
-                    (3, 5, [1,1,1,1,1,1], []), 
-                    [100], 
-                    ([0], [0], [encode(['int256'], [-1])], [False])
-                )
-            ], 
-            {"from": deployer}
-        )
-
-        # Setup items
-        items = Items.at(game.items())
-        items = deploy.setupItems(deployer, items)
-
-        # Setup characters
-        characters = Characters.at(game.characters())
-        characters = deploy.setupCharacters(deployer, characters)
-
-        # Setup dungeons
-        game.addDungeons(
-            [
-                (
-                    [30, 30, 30, 0, 10],
-                    [[100],[100],[100],[100],[100]],
-                    [[0],[0],[0],[0],[0]],
-                    5
-                )
-            ],
-            {"from": deployer}
-        )
-        return (game, items, characters)
-
-    def setupItems(admin, items):
-        items.addBases(
-            [
-                (
-                    "Holy Shield",
-                    "000024060019240500060613180606130806030113060301061805011318050106170401141704010616030115160301061402021614020206110103171101031108020809100602"
-                )
-            ], 
-            {"from": admin})
-        items.addEffects(
-            [
-                (
-                    "Common", 
-                    "<rect fill='#ffffff' x='00' y='00' width='24' height='24'/>"
-                )
-            ], 
-            {"from": admin}
-        )
-        items.addItems(
-            [
-                (2, ([0], [0], [encode(['int256'], [-1])], [False]))
-            ], 
-            [
-                ("Silk's Tower", 10000)
-            ], 
-            {"from": admin}
-        )
-        return items
 
     def setupCharacters(admin, characters):
         characters.addBases(
@@ -133,19 +94,94 @@ class deploy:
         )
         return characters
 
+    def setupItems(admin, game, items):
+        items.addBases(
+            [
+                (
+                    "Holy Shield",
+                    "000024060019240500060613180606130806030113060301061805011318050106170401141704010616030115160301061402021614020206110103171101031108020809100602"
+                )
+            ], 
+            {"from": admin})
+        items.addEffects(
+            [
+                (
+                    "Common", 
+                    "<rect fill='#ffffff' x='00' y='00' width='24' height='24'/>"
+                )
+            ], 
+            {"from": admin}
+        )
+
+        game.addItems(
+            [
+                (2, ([0],[0],[encode(['int256'], [-1])],[False]))
+            ], 
+            [
+                ("Silk's Tower", 10000)
+            ], 
+            {"from": admin}
+        )
+
+        return game, items
+
+    def setupTraps(admin, game):
+        game.addTraps(
+            [
+                ([0], [0], [encode(['int256'], [-1])], [False])
+            ], 
+            {"from": admin}
+        )
+        return game
+
+    def setupEnemies(admin, game):
+        game.addEnemies(
+            [
+                (
+                    (3, 5, [1,1,1,1,1,1], []), 
+                    [100], 
+                    ([0], [0], [encode(['int256'], [-1])], [False])
+                )
+            ], 
+            {"from": admin}
+        )
+        return game
+
+    def setupDungeons(admin, game):
+        game.addDungeons(
+            [
+                (
+                    [30, 30, 30, 0, 10],
+                    [[100],[100],[100],[100],[100]],
+                    [[0],[0],[0],[0],[0]],
+                    5
+                )
+            ],
+            {"from": admin}
+        )
+        return game
+
 def main():
     deployer = accounts[0]
-    RandomHelper.deploy({"from": deployer})
-    DataLibrary.deploy({"from": deployer})
-    StatsLibrary.deploy({"from": deployer})
 
     # Deploy LINK token
     linkToken = deploy.linkToken(deployer)
     randomManager = deploy.randomManager(deployer, linkToken)
 
-    cards = deploy.cards(deployer, linkToken, randomManager)
+    (game, cards, characters, items) = deploy.game(deployer, randomManager)
 
-    (game, items, characters) = deploy.game(deployer, randomManager, cards)
+    # Mint card
+    cardMintData = "0x" + encode(['uint256', 'address', 'address', 'address', 'uint256', 'bytes'], [10**18, game.address, deployer.address, game.address, 0, b'']).hex()
+    linkToken.transferAndCall(randomManager, 2 * (10 ** 18), cardMintData, {"from": deployer})
+    deploy.fufillRandomRequest(randomManager, 1, 2)
+    game.claimCard({"from": deployer})
+
+    # Mint character
+    randomManager.requestRandom(0, 0, accounts[9], accounts[9], game, 1, "", {"from": deployer})
+    deploy.fufillRandomRequest(randomManager, 2, 10)
+    game.claimCharacter("John the Brave", {"from": deployer})
+
+    ###
 
     # Mint card to admin address
     #linkToken.approve(cards, 1000 ** 18, {"from": admin})
