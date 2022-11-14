@@ -1,0 +1,68 @@
+<html>
+    <head>
+        <title>Agaia Online</title>
+        <link rel="stylesheet" type="text/css" href="stylesheet.css">
+        <link rel="stylesheet" href="jquery.terminal.min.css"/>
+        <script src="jquery-3.6.1.min.js"></script>
+        <script src="jquery.terminal.min.js"></script>
+        <script src="axios.min.js"></script>        
+    </head>
+    <body style="background-color: black;">
+
+        <div style="text-align: right; padding-top: 10px; padding-right: 10vw;">
+            <div id="balance-link" class="text-small" style="color:white;">
+                LINK : CLICK CONNECT
+            </div>
+            <div id="balance-matic" class="text-small" style="color:white;">
+                MATIC : CLICK CONNECT
+            </div>
+            <button id="btn-connect" class="button">
+                CONNECT
+            </button>
+        </div>
+
+        <div style="text-align:center;">
+            <button id="btn-requestcard" class="button">
+                REQUEST CARD
+            </button>
+            <button id="btn-claimcard" class="button">
+                CLAIM CARD
+            </button>
+        </div>
+
+        <div style="text-align:center; padding-top: 10px;">
+            <button id="btn-requestcharacter" class="button">
+                REQUEST CHARACTER
+            </button>
+            <input id="input-name" type="text" class="input-text" placeholder="Character name">
+            <button id="btn-claimcharacter" class="button">
+                CLAIM CHARACTER
+            </button>
+        </div>
+
+        <div id='terminalParent' style="margin: 15px auto; border: 1px solid white;">
+        </div>
+
+        <div style="text-align:center; padding-bottom: 10px;">
+            <button id="btn-requestraid" class="button">
+                REQUEST RAID
+            </button>
+            <button id="btn-claimraid" class="button">
+                CLAIM RAID
+            </button>
+        </div>
+
+        <div class="text-medium" style="color:white; text-align: center;">
+            Characters
+            <div id="div-chars" class="text-small">CLICK CONNECT</div>
+        </div>
+
+        <div class="text-medium" style="color:white; text-align: center;">
+            Items
+            <div id="div-items" class="text-small">CLICK CONNECT</div>
+        </div>
+    </body>
+    <script type="text/javascript" src="ethers-5.6.umd.min.js"></script>
+    <script type="text/javascript" src="gameterminal.js"></script>
+    <script type="text/javascript" src="web3handler.js"></script>
+</html>

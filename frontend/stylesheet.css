@@ -19,6 +19,16 @@
     text-align: center;
 }
 
+.input-text {
+    background-color: black;
+    color: white;
+    border: 2px solid;
+    border-color: white;
+    font-family: monospace;
+    font-size: 14;
+    padding: 5px 5px;
+}
+
 .button {
     background-color: black;
     color: white;
@@ -34,4 +44,17 @@
 .button:enabled:active {
     background-color: white;
     color: black;
+}
+
+.img-character {
+    width: 64px;
+    height: 64px;
+    border: 2px solid white;
+    margin: 0px 5px;
+}
+.img-item {
+    width: 48px;
+    height: 48px;
+    border: 2px solid white;
+    margin: 0px 5px;
 }

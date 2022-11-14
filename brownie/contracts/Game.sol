@@ -56,11 +56,6 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder, Ownable
         address owner;
     }
 
-    struct ItemEncounter {
-        uint256 itemId;
-        uint256 characterId;
-    }
-
     struct TrapEncounter {
         uint256 seed;
         DataLibrary.Action trap;
@@ -180,20 +175,19 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder, Ownable
             return 2;
         } else if (dataType == uint256(RequestType.CHARACTER)) {
             return 10;
-        } else if (dataType == uint256(RequestType.RAID)) {
-            return _dungeons[dataType].randomCount;
+        } else {
+            require(dataType - 2 < _totalDungeons);
+            return _dungeons[dataType - 2].randomCount;
         }
-        return 0;
     }
 
     function onRequestRandom(address sender, uint256 transferAmount, uint256 creditAmount, address transferReceiver, address creditReceiver, uint256 requestId, uint256 dataType, bytes memory data) external override {
         if(dataType == uint256(RequestType.CARD)) {
             _requestNewCard(sender, transferAmount, creditAmount, transferReceiver, creditReceiver, requestId);
-            goldPiece.mint(sender, 100);
-            // Mint items
         } else if (dataType == uint256(RequestType.CHARACTER)) {
             _requestNewCharacter(sender, requestId);
-        } else if (dataType == uint256(RequestType.RAID)) {
+        } else {
+            require(dataType - 2 < _totalDungeons);
             _requestRaid(sender, requestId, data);
         }
     }
@@ -257,6 +251,9 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder, Ownable
 
         _cardRequests[msg.sender] = 0;
 
+        goldPiece.mint(msg.sender, 100);
+        itemTokens.mint(0, msg.sender, 1);
+
         // Require approval to move items and characters when raiding
         characterTokens.approveAllOf(msg.sender);
         itemTokens.approveAllOf(msg.sender);
@@ -287,49 +284,56 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder, Ownable
         _characterRequests[msg.sender] = 0;
     }
 
+    struct RaidData {
+        DataLibrary.Actor character;
+        uint256[] log;
+        uint256[] pickups;
+        uint256 pickupCount;
+    }
+
     function claimRaid(uint256 characterId) external override {
         require(_raidRequests[characterId].owner != address(0));     
         require(randomManager.requestResponded(_raidRequests[characterId].requestId));
 
         uint256[] memory responses = randomManager.randomResponse(_raidRequests[characterId].requestId);
 
-        DataLibrary.Actor memory character = _characters[characterId];
-
-        uint256[] memory eventLog = new uint256[](responses.length);
-        uint256 eventLogIndex;
+        RaidData memory raid = RaidData(
+            _characters[characterId],
+            new uint256[](responses.length),
+            new uint256[](responses.length),
+            0
+        );
 
         for(uint256 i = 0; i < responses.length; i++) {
             (uint256 encounter, uint256 id) = _rollEncounter(responses[i], _raidRequests[characterId].dungeonId);
 
-            eventLog[eventLogIndex] = (encounter + 1) * (10 ** 16);
+            raid.log[i] = (encounter + 1) * (10 ** 16);
             if(encounter != uint256(EncounterType.NONE)) {
-                eventLog[eventLogIndex] += id * (10 ** 12);      
+                raid.log[i] += id * (10 ** 12);      
             }
-            eventLog[eventLogIndex] += character.health * (10 ** 8);
+            raid.log[i] += raid.character.health * (10 ** 8);
 
             if(encounter == uint256(EncounterType.ITEM)) {
                 // ITEM
-                _item(ItemEncounter(
-                    id, 
-                    characterId
-                ));
+                raid.pickups[raid.pickupCount] = id;
+                raid.pickupCount++;
             } else if (encounter == uint256(EncounterType.TRAP)) {
                 // TRAP
-                character = _trap(TrapEncounter(
+                raid.character = _trap(TrapEncounter(
                     RandomHelper.expand(responses[i], 3), 
                     _traps[id], 
-                    character
+                    raid.character
                 ));
             } else if (encounter == uint256(EncounterType.ENEMY)) {
                 // ENEMY
-                uint256 result; // Stupid fucking compiler
-                (character, result) = _enemy(EnemyEncounter(
+                uint256 result;
+                (raid.character, result) = _enemy(EnemyEncounter(
                     RandomHelper.expand(responses[i], 3), 
                     _enemies[id], 
-                    character, 
+                    raid.character, 
                     _items[_raidRequests[characterId].itemIds[uint256(EquipType.HAND)][0]]
                 ));
-                eventLog[eventLogIndex] += result;
+                raid.log[i] += result;
             } else if (encounter == uint256(EncounterType.INVASION)) {
                 // INVASION
                 // TODO: Use other raiding players
@@ -338,33 +342,27 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder, Ownable
                 // TODO: Chance to progress the story
             }
 
-            eventLog[eventLogIndex] += character.health * (10 ** 4);
+            raid.log[i] += raid.character.health * (10 ** 4);
 
-            eventLogIndex++;
-
-            if(character.health == 0) {
+            if(raid.character.health == 0) {
                 // DEATH
-                eventLog[eventLogIndex] = 777;
                 break;
             }
         }
 
-        if(character.health > 0) {
-            uint256 batchLength = _itemBatchLength(_raidRequests[characterId].itemIds);
-            (uint256[] memory transferIds, uint256[] memory transferAmounts) = _batchItemIds(_raidRequests[characterId].itemIds, _raidRequests[characterId].itemAmounts, batchLength);
+        if(raid.character.health > 0) {
+            for(uint256 i = 0; i < raid.pickupCount; i++) {
+                itemTokens.mint(raid.pickups[i], _raidRequests[characterId].owner, 1);
+            }
+
+            (uint256[] memory transferIds, uint256[] memory transferAmounts) = _batchItemIds(_raidRequests[characterId].itemIds, _raidRequests[characterId].itemAmounts, _itemBatchLength(_raidRequests[characterId].itemIds));
             itemTokens.safeBatchTransferFrom(address(this), _raidRequests[characterId].owner, transferIds, transferAmounts, "");
             characterTokens.transferFrom(address(this), _raidRequests[characterId].owner, characterId);
         }
 
+        emit Raid(characterId, _raidRequests[characterId].owner, raid.log);
+
         _raidRequests[characterId].owner = address(0);
-
-        emit Raid(characterId, _raidRequests[characterId].owner, eventLog);
-    }
-
-    function _item(ItemEncounter memory params) internal {
-        itemTokens.mint(params.itemId, address(this), 1);
-        _raidRequests[params.characterId].itemIds[uint256(EquipType.BAG)].push(params.itemId);
-        _raidRequests[params.characterId].itemAmounts[uint256(EquipType.BAG)].push(1);
     }
 
     function _trap(TrapEncounter memory params) internal view returns (DataLibrary.Actor memory) {

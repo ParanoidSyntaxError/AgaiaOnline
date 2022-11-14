@@ -53,8 +53,8 @@ contract Items is ItemsInterface, ERC1155, SvgArt {
         return StringHelper.encodeMetadata(
             _metadata[id].name,
             "Description", 
-            _svg(id, "<svg xmlns='http://www.w3.org/2000/svg' id='block-hack' preserveAspectRatio='xMinYMin meet' viewBox='0 0 24 24'><style>#block-hack{shape-rendering: crispedges;}</style>"), 
-            "Attributes"
+            _svg(_metadata[id].tokenHash, "<svg xmlns='http://www.w3.org/2000/svg' id='block-hack' preserveAspectRatio='xMinYMin meet' viewBox='0 0 24 24'><style>#block-hack{shape-rendering: crispedges;}</style>"), 
+            "[]"
         );
     }
 

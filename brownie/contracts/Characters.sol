@@ -16,7 +16,7 @@ contract Characters is CharactersInterface, ERC721, SvgArt {
     address public immutable game;
 
 
-    constructor(address gameContract, address owner) ERC721("", "") {
+    constructor(address gameContract, address owner) ERC721("Agaia Online - Characters", "CHARS") {
         game = gameContract;
         _transferOwnership(owner);
     }
@@ -42,14 +42,14 @@ contract Characters is CharactersInterface, ERC721, SvgArt {
         return _totalSupply;
     }
 
-    function tokenURI(uint256 id) public view override returns (string memory) {       
-        _requireMinted(id);
+    function tokenURI(uint256 id) public view override returns (string memory) {     
+        //require(_totalSupply < id);
 
         return StringHelper.encodeMetadata(
-            _name(id),
+            _metadata[id].name,
             "Description", 
-            _svg(id, "<svg xmlns='http://www.w3.org/2000/svg' id='block-hack' preserveAspectRatio='xMinYMin meet' viewBox='0 0 32 32'><style>#block-hack{shape-rendering: crispedges;}</style>"), 
-            "Attributes"
+            _svg(_metadata[id].tokenHash, "<svg xmlns='http://www.w3.org/2000/svg' id='block-hack' preserveAspectRatio='xMinYMin meet' viewBox='0 0 32 32'><style>#block-hack{shape-rendering: crispedges;}</style>"), 
+            "[]"
         );
     }
 }

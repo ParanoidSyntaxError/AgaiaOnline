@@ -43,7 +43,7 @@ contract Cards is CardsInterface, ERC1155, SvgArt {
             _name(id),
             "Description", 
             _svg(id, "<svg xmlns='http://www.w3.org/2000/svg' id='block-hack' preserveAspectRatio='xMinYMin meet' viewBox='0 0 16 24'><style>#block-hack{shape-rendering: crispedges;}</style>"), 
-            "Attributes"
+            "[]"
         );
     }
 
