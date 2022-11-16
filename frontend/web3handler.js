@@ -1227,7 +1227,7 @@ async function requestRaid() {
 
 	let raidData = abi.encode(
 		['uint256', 'uint256', 'uint256[][7]', 'uint256[][7]'],
-		[0, selectedCharacter.id, raidItems, raidAmounts]
+		[1, selectedCharacter.id, raidItems, raidAmounts]
 	);
 
 	let txn = await rngContract.requestRandom(0, 0, "0x0000000000000000000000000000000000000000", "0x0000000000000000000000000000000000000000", gameAddress, 2, raidData);
@@ -1261,6 +1261,8 @@ async function claimRaid() {
 function echoRaid(txn) {
 	terminal.echo("[[b;black;yellow;] RAID START ]");
 
+	terminalEcho("", EchoType.Text);
+
 	for(let i = 0; i < txn['events'].length; i++) {
 		if(txn['events'][i].event == "Raid") {
 			for(let e = 0; e < 5; e++) {
@@ -1270,6 +1272,7 @@ function echoRaid(txn) {
 				let startHp = parseInt(log.slice(5, 9));
 				let endHp = parseInt(log.slice(9, 13));
 				let result = parseInt(log.slice(13, 17));
+				let damage = (startHp - endHp).toString();
 
 				switch(parseInt(log[0])) {
 					case 1:
@@ -1282,40 +1285,102 @@ function echoRaid(txn) {
 							itemName = "Scythe" 
 						} else if (id == 2) {
 							itemName = "Cracked Orb"
+						} else if (id == 3) {
+							itemName = "Health Potion"
+						} else if (id == 4) {
+							itemName = "Amulet of Atu Loss"
+						} else if (id == 5) {
+							itemName = "Candle"
 						}
 
 						terminalEcho(selectedCharacter.name + " found a " + itemName, EchoType.Item);
 						break;
 					case 2:
 						// TRAP
-						terminalEcho(
-							"Walking down a narrow passage, " + 
-							selectedCharacter.name + 
-							" feels something pull at his ankle as he steps. The click of some mechanism in the wall is heard, and " + 
-							selectedCharacter.name + " is suddenly struck with an arrow taking " + (startHp - endHp).toString() + " damage!", 
-							EchoType.Trap
-						);
+						if(id == 0) {
+							terminalEcho(
+								"Walking down a narrow passage, " + 
+								selectedCharacter.name + 
+								" feels something pull at his ankle as he steps. The click of some mechanism in the wall is heard, and " + 
+								selectedCharacter.name + " is suddenly struck with an arrow taking " + damage + " damage!", 
+								EchoType.Trap
+							);	
+						} else if (id == 1) {
+							terminalEcho(
+								"The pattern of " + 
+								selectedCharacter.name + 
+								"'s foot steps are broken by a loud click from below a depressed cobblestone tile. A log then swings down from the ceiling, battering " +
+								selectedCharacter.name +
+								" in the back and taking " + damage + " damage!", 
+								EchoType.Trap
+							);
+						} else if (id == 2) {
+							terminalEcho(
+								selectedCharacter.name + 
+								" spots the glimmer of some gold object from under some torn rags, upon grabbing the thing, " + 
+								selectedCharacter.name + 
+								" can feel something pulling the object back down. Then a flash of orange and white as " + 
+								selectedCharacter.name + 
+								" is engulfed by flames. Jumping back, " + selectedCharacter.name + " watches as the fire dissipates, having taken " + damage + " damage!", 
+								EchoType.Trap
+							);
+						}
 						break;
 					case 3:
 						// ENEMY
-						switch(result) {
-							case 1:
-								terminalEcho(
-									"A wild looking man-ape appears from out behind a pretruding rock in " + selectedCharacter.name + 
-									"'s path, the two lock eyes and begin striking at each other. " + 
-									selectedCharacter.name + 
-									" is able to land a fatal blow against the man-ape, having sustained " + (startHp - endHp).toString() + " damage!",
-									EchoType.Fight
-								);
-								break;
-							case 7:
-								terminalEcho(
-									"A wild looking man-ape appears from out behind a pretruding rock in " + selectedCharacter.name + 
-									"'s path, the two lock eyes and begin striking at each other with their weapons. " + 
-									"The man-ape is able to land a fatal blow, killing " + selectedCharacter.name,
-									EchoType.Fight
-								);
-								break;
+						if (id == 1) {
+							switch(result) {
+								case 1:
+									terminalEcho(
+										"A wild looking man-ape appears from out behind a pretruding rock in " + selectedCharacter.name + 
+										"'s path, the two lock eyes and begin striking at each other. " + 
+										selectedCharacter.name + 
+										" is able to land a fatal blow against the man-ape, having sustained " + damage + " damage!",
+										EchoType.Enemy
+									);
+									break;
+								case 7:
+									terminalEcho(
+										"A wild looking man-ape appears from out behind a pretruding rock in " + selectedCharacter.name + 
+										"'s path, the two lock eyes and begin striking at each other with their weapons. " + 
+										"The man-ape is able to land a fatal blow, killing " + selectedCharacter.name,
+										EchoType.Enemy
+									);
+									break;
+							}						
+						} else if (id == 2) {
+							switch(result) {
+								case 1:
+									terminalEcho(
+										selectedCharacter.name + 
+										" is stopped by the groan of something ahead, the silhouette of an algoid begins to emerge from the darkness as it charges toward " + 
+										selectedCharacter.name +
+										". The hulking blue creature just misses " + 
+										selectedCharacter.name + 
+										", who starts to strike the algoid as it recovers from crashing into the wall behind " + 
+										selectedCharacter.name + 
+										" The alogid now turned to face " + 
+										selectedCharacter.name + 
+										" begins raining its giant fists down. " + 
+										selectedCharacter.name + 
+										" is is able to bring the algoid to its knees in pain, and land a fatal blow to its head, having sustained " + damage + " damage!", 
+										EchoType.Enemy
+									);
+									break;
+								case 7:
+									terminalEcho(
+										selectedCharacter.name + 
+										" is stopped by the groan of something ahead, the silhouette of an algoid begins to emerge from the darkness as it charges toward " + 
+										selectedCharacter.name +
+										". The hulking blue creature crashes into " + 
+										selectedCharacter.name + 
+										", killing " + 
+										selectedCharacter.name + 
+										" instantly!", 
+										EchoType.Enemy
+									);									
+									break;
+							}								
 						}
 						break;
 					case 5:
@@ -1340,7 +1405,7 @@ function echoRaid(txn) {
 								break;
 							case 2:
 								terminalEcho(
-									"Hunched over a rotting wooden table lays a humanoid skeleton, hundreds of keys, all seemingly identical, are scattered across the table top and floor." + 
+									"Hunched over a rotting wooden table lays a humanoid skeleton, hundreds of keys, all seemingly identical, are scattered across the table top and floor.", 
 									EchoType.None
 								);
 								break;
@@ -1356,6 +1421,14 @@ function echoRaid(txn) {
 				}
 
 				terminalEcho("", EchoType.Text);
+
+				if(endHp == 0) {
+					terminalEcho(
+						selectedCharacter.name + " DIED",
+						EchoType.Error
+					);
+					break;
+				}
 			}
 
 			break;

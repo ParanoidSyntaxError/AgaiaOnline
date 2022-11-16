@@ -6,7 +6,7 @@ const EchoType = {
     
     Item: 4,
     Trap: 5,
-    Fight: 6,
+    Enemy: 6,
     Invasion: 7,
     None: 8
 }
@@ -94,13 +94,13 @@ function terminalEcho(text, type) {
             terminal.echo('[[;cyan;]' + text + ']');
             break;
         case EchoType.Trap:
-            terminal.echo('[[;yellow;]' + text + ']');
-            break;
-        case EchoType.Fight:
             terminal.echo('[[;orange;]' + text + ']');
             break;
-        case EchoType.Invasion:
+        case EchoType.Enemy:
             terminal.echo('[[;brown;]' + text + ']');
+            break;
+        case EchoType.Invasion:
+            terminal.echo('[[;purple;]' + text + ']');
             break;
         case EchoType.None:
             terminal.echo('[[;white;]' + text + ']');
