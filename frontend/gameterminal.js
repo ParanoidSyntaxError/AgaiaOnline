@@ -94,13 +94,13 @@ function terminalEcho(text, type) {
             terminal.echo('[[;cyan;]' + text + ']');
             break;
         case EchoType.Trap:
-            terminal.echo('[[;orange;]' + text + ']');
+            terminal.echo('[[;yellow;]' + text + ']');
             break;
         case EchoType.Enemy:
-            terminal.echo('[[;brown;]' + text + ']');
+            terminal.echo('[[;orange;]' + text + ']');
             break;
         case EchoType.Invasion:
-            terminal.echo('[[;purple;]' + text + ']');
+            terminal.echo('[[;hotpink;]' + text + ']');
             break;
         case EchoType.None:
             terminal.echo('[[;white;]' + text + ']');

@@ -1259,7 +1259,7 @@ async function claimRaid() {
 }
 
 function echoRaid(txn) {
-	terminal.echo("[[b;black;yellow;] RAID START ]");
+	terminal.echo("[[b;black;gray;] RAID START ]");
 
 	terminalEcho("", EchoType.Text);
 
@@ -1437,7 +1437,7 @@ function echoRaid(txn) {
 		}
 	}
 
-	terminal.echo("[[b;black;yellow;] RAID END ]");
+	terminal.echo("[[b;black;gray;] RAID END ]");
 }
 
 async function getCharacters() {
