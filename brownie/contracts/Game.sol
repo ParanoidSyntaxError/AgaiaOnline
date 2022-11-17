@@ -375,7 +375,7 @@ contract Game is GameInterface, RandomRequestorInterface, ERC1155Holder, Ownable
     function _enemy(EnemyEncounter memory params) internal view returns (DataLibrary.Actor memory, uint256) {        
         uint256 randNonce = 1;
 
-        for(uint256 i = 0; i < 10; i ++) {
+        for(uint256 i = 0; i < 5; i ++) {
             bool playerFirst;
             if(StatsLibrary.calculateInitiative(params.character.stats) == StatsLibrary.calculateInitiative(params.enemy.actor.stats)) {
                 if(RandomHelper.expand(params.seed, randNonce) % 2 == 0) {

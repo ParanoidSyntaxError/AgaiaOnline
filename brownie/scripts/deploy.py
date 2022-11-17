@@ -178,9 +178,9 @@ class deploy:
         game.addEnemies(
             [
                 (
-                    (3, 5, [1,1,1,1,1,1], []), 
+                    (9, 9, [1,1,1,1,1,1], []), 
                     [100], 
-                    ([0], [0], [encode(['int256'], [-5])], [False])
+                    ([0], [0], [encode(['int256'], [-4])], [False])
                 )
             ], 
             {"from": admin}

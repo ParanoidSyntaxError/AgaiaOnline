@@ -1328,6 +1328,8 @@ function echoRaid(txn) {
 						break;
 					case 3:
 						// ENEMY
+						damage = Math.floor(Math.random() * 7) + 1;
+
 						if (id == 1) {
 							switch(result) {
 								case 1:
