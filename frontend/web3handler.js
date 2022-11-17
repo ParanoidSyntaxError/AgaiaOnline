@@ -1365,7 +1365,7 @@ function echoRaid(txn) {
 										selectedCharacter.name + 
 										" begins raining its giant fists down. " + 
 										selectedCharacter.name + 
-										" is is able to bring the algoid to its knees in pain, and land a fatal blow to its head, having sustained " + damage + " damage!", 
+										" is able to bring the algoid to its knees in pain, and land a fatal blow to its head, having sustained " + damage + " damage!", 
 										EchoType.Enemy
 									);
 									break;
