@@ -1,0 +1,43 @@
+[
+    {
+        "ITEM":[
+
+        ],
+        "TRAP":[
+            {
+                "HIT": "Walking down a narrow passage, {NAME} feels something pull at their ankle. Then the click of some mechanism in the wall is heard, and {NAME} is suddenly struck with an arrow taking {DAMAGE} damage!",
+                "MISS": ""
+            },
+            {
+                "HIT": "The pattern of {NAME}'s foot steps are broken by a loud click from below a depressed cobblestone tile. A log then swings down from the ceiling, battering {NAME} in the back and taking {DAMAGE} damage!",
+                "MISS": ""
+            },
+            {
+                "HIT": "{NAME} spots the glimmer of some gold object from under a pile of torn rags, upon grabbing the thing, {NAME} can feel something pulling the object back down. Then a flash of orange and white as {NAME} is engulfed in flames. Jumping back, {NAME} watches as the fire dissipates, having taken {DAMAGE} damage!",
+                "MISS": ""
+            }
+        ],
+        "ENEMY":[
+            {
+                "WIN": "A wild looking man-ape appears from out behind a pretruding rock in {NAME}'s path, the two lock eyes and begin striking at each other. {NAME} is able to land a fatal blow against the man-ape, having sustained {DAMAGE} damage!",
+                "LOSS": "A wild looking man-ape appears from out behind a pretruding rock in {NAME}'s path, the two lock eyes and begin striking at each other with their weapons. The man-ape is able to land a fatal blow, killing {NAME}!",
+                "FLEE": ""
+            },
+            {
+                "WIN": "{NAME} is stopped by the groan of something ahead, the silhouette of an algoid begins to emerge from the darkness as it charges toward {NAME}. The hulking blue creature just misses {NAME}, who starts to strike the algoid as it recovers from crashing into the wall behind {NAME}. The alogid now turns to face {NAME} and begins raining its giant fists down. {NAME} is able to bring the algoid to its knees in pain, and land a fatal blow to its head, having sustained {DAMAGE} damage!",
+                "LOSS": "{NAME} is stopped by the groan of something ahead, the silhouette of an algoid begins to emerge from the darkness as it charges toward {NAME}. The hulking blue creature crashes into {NAME}, killing {NAME} instantly!",
+                "FLEE": ""
+            }
+        ],
+        "INVASION":[
+
+        ],
+        "NONE":[
+            "Standing still for a moment in the silence of the dungeon {NAME} is able to hear a faint sound. As if the stone below were being ground together by some giant beast.",
+            "In the darkness {NAME} can make out the distant flicker of a torch, upon moving closer to the torches glow, the flame is extinguished.",
+            "Hunched over a rotting wooden table lays a humanoid skeleton, hundreds of keys, all seemingly identical, are scattered across the table top and floor.",
+            "{NAME} approaches a metal door. It doesn't appear to have any sort of handle, or visable locking mechanism, the only feature betraying the metal slab as a door, is the slither of light coming from the paper-thin gap down its centre.",
+            "{NAME} feels the presence of some hidden voyer. {NAME} stops and looks around them, but sees only the dark corridors of the dungeon. The feeling of being watched does not subside."
+        ]
+    }
+]
